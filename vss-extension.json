@@ -1,0 +1,94 @@
+{
+  "manifestVersion": 1,
+  "id": "ado-git-bulk-changes",
+  "publisher": "namoshek",
+  "version": "0.0.1",
+  "name": "Git Bulk Changes",
+  "description": "Perform bulk changes in Git repositories across your Azure DevOps organization.",
+  "public": true,
+  "galleryFlags": ["Preview"],
+  "categories": ["Azure Repos"],
+  "tags": [
+    "repos",
+    "git",
+    "automation",
+    "devops"
+  ],
+  "icons": {
+    "default": "images/logo.png"
+  },
+  "targets": [
+    {
+      "id": "Microsoft.VisualStudio.Services"
+    }
+  ],
+  "demands": ["api-version/7.0"],
+  "branding": {
+    "color": "#1a1e28",
+    "theme": "dark"
+  },
+  "content": {
+    "details": {
+      "path": "docs/overview.md"
+    },
+    "license": {
+      "path": "LICENSE.md"
+    }
+  },
+  "links": {
+    "issues": {
+      "uri": "https://github.com/Namoshek/azure-devops-git-bulk-changes/issues"
+    },
+    "getstarted": {
+      "uri": "https://github.com/Namoshek/azure-devops-git-bulk-changes"
+    },
+    "license": {
+      "uri": "https://github.com/Namoshek/azure-devops-git-bulk-changes/blob/main/LICENSE.md"
+    },
+    "support": {
+      "uri": "https://github.com/Namoshek/azure-devops-git-bulk-changes/issues"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "uri": "https://github.com/Namoshek/azure-devops-git-bulk-changes"
+  },
+  "CustomerQnASupport": {
+    "enablemarketplaceqna": "false",
+    "url": "https://github.com/Namoshek/azure-devops-git-bulk-changes/issues"
+  },
+  "screenshots": [
+    { "path": "images/screenshot_01.png" }
+  ],
+  "contributions": [
+    {
+      "id": "collection-settings-hub",
+      "type": "ms.vss-web.hub",
+      "description": "Git Bulk Changes adds a hub for managing bulk Git changes (collection admins only).",
+      "targets": ["ms.vss-web.collection-admin-hub-group"],
+      "properties": {
+        "name": "Git Bulk Changes",
+        "order": 100,
+        "uri": "dist/AdminHub/index.html"
+      }
+    }
+  ],
+  "scopes": [
+    "vso.code_manage",
+    "vso.project"
+  ],
+  "files": [
+    {
+      "path": "dist",
+      "addressable": true
+    },
+    {
+      "path": "images",
+      "addressable": true
+    },
+    {
+      "path": "docs",
+      "addressable": true
+    }
+  ]
+}
