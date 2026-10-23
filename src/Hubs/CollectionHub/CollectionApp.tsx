@@ -10,7 +10,7 @@ import { MessageCard } from "azure-devops-ui/Components/MessageCard/MessageCard"
 import { MessageCardSeverity } from "azure-devops-ui/Components/MessageCard/MessageCard.Props";
 import { getErrorMessage } from "../../utils/errorUtils";
 
-export function AdminApp() {
+export function CollectionApp() {
   const [loading, setLoading] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
 

@@ -8,7 +8,7 @@ const hasCerts = fs.existsSync(certPath) && fs.existsSync(keyPath);
 
 module.exports = {
   entry: {
-    AdminHub: "./src/Hubs/AdminHub/index.tsx",
+    CollectionHub: "./src/Hubs/CollectionHub/index.tsx",
   },
   output: {
     filename: "[name]/[name].js",
@@ -47,7 +47,7 @@ module.exports = {
   },
   plugins: [
     new CopyPlugin({
-      patterns: [{ from: "src/Hubs/AdminHub/index.html", to: "AdminHub/index.html" }],
+      patterns: [{ from: "src/Hubs/CollectionHub/index.html", to: "CollectionHub/index.html" }],
     }),
   ],
   performance: {
