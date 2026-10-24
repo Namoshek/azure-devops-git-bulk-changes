@@ -379,9 +379,10 @@ export function createRepoAccess(options: RepoClientOptions = {}): RepoAccess {
         throw new BulkChangeError("pull_request_failed", `No pull request was created in ${target.repositoryName}.`);
       }
 
+      let autoCompleteWarning: string | undefined;
       if (request.autoMerge) {
         try {
-          const updated = await client.updatePullRequest(
+          await client.updatePullRequest(
             {
               autoCompleteSetBy: { id: SDK.getUser().id },
               completionOptions: {
@@ -393,31 +394,17 @@ export function createRepoAccess(options: RepoClientOptions = {}): RepoAccess {
             created.pullRequestId,
             target.projectName,
           );
-
-          if (!updated?.autoCompleteSetBy?.id) {
-            throw new BulkChangeError(
-              "pull_request_failed",
-              `Created pull request #${created.pullRequestId}, but Azure DevOps did not enable auto-complete.`,
-            );
-          }
         } catch (err) {
-          if (err instanceof BulkChangeError) {
-            throw err;
-          }
-          if (isAccessError(err)) {
-            throw new BulkChangeError(
-              "pull_request_denied",
-              serverMessage(err, `Cannot enable auto-complete on pull request #${created.pullRequestId}.`),
-            );
-          }
-          throw new BulkChangeError(
-            "pull_request_failed",
-            `Created pull request #${created.pullRequestId}, but could not enable auto-complete: ${serverMessage(err, "the update failed")}`,
-          );
+          const fallbackMessage = isAccessError(err) ? "The request was denied." : "The update failed.";
+          autoCompleteWarning = serverMessage(err, fallbackMessage);
         }
       }
 
-      return { pullRequestId: created.pullRequestId };
+      const result: PullRequestResult = { pullRequestId: created.pullRequestId };
+      if (autoCompleteWarning) {
+        result.autoCompleteWarning = autoCompleteWarning;
+      }
+      return result;
     },
   };
 }

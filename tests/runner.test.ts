@@ -281,6 +281,25 @@ describe("applyRepos", () => {
     });
   });
 
+  it("retains the created pull request link when auto-complete setup fails", async () => {
+    const { access } = createStub({ files: { a: {} } });
+    access.createPullRequest = async () => ({
+      pullRequestId: 101,
+      autoCompleteWarning: "The request was denied.",
+    });
+    const definition = definitionOf(PR_MODE);
+    const plans = await previewRepos(access, definition, [repo("A", "a")]);
+    const results = await applyRepos(access, definition, plans);
+
+    expect(results[0]).toMatchObject({
+      status: "pr-created",
+      message:
+        "Created pull request !101 into refs/heads/main. Auto-complete could not be enabled: The request was denied.",
+      pullRequestId: 101,
+      link: "https://dev.example/Project/_git/A/pullrequest/101",
+    });
+  });
+
   it("re-reads the tip at apply time so a stale preview cannot overwrite newer work", async () => {
     let tip = "commit-a";
     const access: RepoAccess = {

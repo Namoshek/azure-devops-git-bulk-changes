@@ -31,6 +31,8 @@ export interface PullRequestRequest {
 
 export interface PullRequestResult {
   pullRequestId: number;
+  /** Present when the pull request was created but requested auto-complete could not be enabled. */
+  autoCompleteWarning?: string;
 }
 
 /**

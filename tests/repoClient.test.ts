@@ -75,6 +75,21 @@ describe("createPullRequest", () => {
     );
   });
 
+  it("returns the created pull request with a warning when auto-complete setup fails", async () => {
+    client.updatePullRequest.mockRejectedValueOnce(new Error("Policy update was rejected."));
+
+    await expect(createRepoAccess().createPullRequest(target, request)).resolves.toEqual({
+      pullRequestId: 42,
+      autoCompleteWarning: "Policy update was rejected.",
+    });
+  });
+
+  it("accepts a successful auto-complete update without the optional response field", async () => {
+    client.updatePullRequest.mockResolvedValueOnce({});
+
+    await expect(createRepoAccess().createPullRequest(target, request)).resolves.toEqual({ pullRequestId: 42 });
+  });
+
   it("does not update the pull request when auto-complete is disabled", async () => {
     await expect(createRepoAccess().createPullRequest(target, { ...request, autoMerge: false })).resolves.toEqual({
       pullRequestId: 42,

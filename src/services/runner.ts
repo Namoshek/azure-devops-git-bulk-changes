@@ -177,11 +177,14 @@ export async function applyRepos(
           isDraft: definition.pullRequest.draft,
           autoMerge: definition.pullRequest.autoMerge,
         });
+        const autoCompleteWarning = pullRequest.autoCompleteWarning
+          ? ` Auto-complete could not be enabled: ${pullRequest.autoCompleteWarning}`
+          : "";
 
         partial[index] = {
           target,
           status: "pr-created",
-          message: `Created pull request !${pullRequest.pullRequestId} into ${plan.branch}.`,
+          message: `Created pull request !${pullRequest.pullRequestId} into ${plan.branch}.${autoCompleteWarning}`,
           commitId: push.commitId,
           pullRequestId: pullRequest.pullRequestId,
           link: webLink(target, "pullrequest", pullRequest.pullRequestId),
