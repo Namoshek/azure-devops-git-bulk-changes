@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { applyRepos, previewRepos } from "../../../services/bulkChanges/runner";
 import { createRepoAccess } from "../../../infrastructure/azureDevOps/repoClient";
 import { ApplyResult, BulkChangeDefinition, RepoPlan, RepoTarget } from "../../../domain/bulkChanges/types";
+import { recordBulkChangeHistory } from "../../../services/bulkChanges/history";
 import { getErrorMessage } from "../../../utils/errorUtils";
 
 export type RunPhase = "idle" | "previewing" | "previewed" | "applying" | "applied";
@@ -27,7 +28,7 @@ export interface BulkRunState {
   /** `null` until a preview has completed; callers compare it against the current inputs. */
   stamp: PreviewStamp | null;
   startPreview: (definition: BulkChangeDefinition, targets: RepoTarget[]) => void;
-  startApply: (definition: BulkChangeDefinition, plans: RepoPlan[]) => void;
+  startApply: (definition: BulkChangeDefinition, plans: RepoPlan[], yamlText: string) => void;
   cancel: () => void;
   reset: () => void;
 }
@@ -88,7 +89,7 @@ export function useBulkRun(): BulkRunState {
       });
   }, []);
 
-  const startApply = useCallback((definition: BulkChangeDefinition, previewed: RepoPlan[]): void => {
+  const startApply = useCallback((definition: BulkChangeDefinition, previewed: RepoPlan[], yamlText: string): void => {
     if (running.current) {
       return;
     }
@@ -105,9 +106,14 @@ export function useBulkRun(): BulkRunState {
       isCancelled: () => cancelled.current,
       onProgress: (partial) => setResults(partial as ApplyResult[]),
     })
-      .then((settled) => {
+      .then(async (settled) => {
         setResults(settled);
         setDone(settled.length);
+        try {
+          await recordBulkChangeHistory(yamlText, settled);
+        } catch (err) {
+          console.warn("Failed to record bulk change history:", err);
+        }
         setPhase("applied");
       })
       .catch((err) => {

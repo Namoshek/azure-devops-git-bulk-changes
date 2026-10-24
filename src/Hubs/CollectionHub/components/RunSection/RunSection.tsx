@@ -11,6 +11,7 @@ import "./RunSection.css";
 interface RunSectionProps {
   /** `null` while the YAML is not a valid definition. */
   definition: BulkChangeDefinition | null;
+  yamlText: string;
   targets: RepoTarget[];
   run: BulkRunState;
 }
@@ -20,7 +21,7 @@ function displayName(target: RepoTarget): string {
 }
 
 /** Runs the definition against the selected repositories: preview, review, then apply. */
-export function RunSection({ definition, targets, run }: RunSectionProps) {
+export function RunSection({ definition, yamlText, targets, run }: RunSectionProps) {
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -50,7 +51,7 @@ export function RunSection({ definition, targets, run }: RunSectionProps) {
   const startApply = (): void => {
     if (definition) {
       setConfirmOpen(false);
-      run.startApply(definition, run.plans);
+      run.startApply(definition, run.plans, yamlText);
     }
   };
 

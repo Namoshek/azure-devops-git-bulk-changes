@@ -14,10 +14,18 @@ interface YamlEditorProps {
   language?: string;
   ariaLabel: string;
   disabled?: boolean;
+  automaticLayout?: boolean;
   onChange: (value: string) => void;
 }
 
-export function YamlEditor({ value, language = "yaml", ariaLabel, disabled = false, onChange }: YamlEditorProps) {
+export function YamlEditor({
+  value,
+  language = "yaml",
+  ariaLabel,
+  disabled = false,
+  automaticLayout = true,
+  onChange,
+}: YamlEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   // Latest callback without re-creating the editor model on every render.
@@ -37,7 +45,7 @@ export function YamlEditor({ value, language = "yaml", ariaLabel, disabled = fal
       language,
       theme: initialTheme,
       ariaLabel,
-      automaticLayout: true,
+      automaticLayout,
       minimap: { enabled: false },
       fontSize: 13,
       lineNumbersMinChars: 3,
@@ -48,6 +56,16 @@ export function YamlEditor({ value, language = "yaml", ariaLabel, disabled = fal
       scrollbar: { verticalScrollbarSize: 10, horizontalScrollbarSize: 10 },
     });
     editorRef.current = editor;
+
+    let layoutFrame: number | null = null;
+    if (!automaticLayout) {
+      layoutFrame = requestAnimationFrame(() => {
+        layoutFrame = null;
+        if (editorRef.current === editor) {
+          editor.layout();
+        }
+      });
+    }
 
     const changeSubscription = editor.onDidChangeModelContent(() => {
       onChangeRef.current(editor.getValue());
@@ -61,6 +79,9 @@ export function YamlEditor({ value, language = "yaml", ariaLabel, disabled = fal
 
     return () => {
       window.removeEventListener("themeApplied", onThemeChanged);
+      if (layoutFrame !== null) {
+        cancelAnimationFrame(layoutFrame);
+      }
       changeSubscription.dispose();
       editor.dispose();
       editorRef.current = null;

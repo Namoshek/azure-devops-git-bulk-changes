@@ -14,6 +14,7 @@ import { DefinitionCard } from "./components/DefinitionCard/DefinitionCard";
 import { RunSection } from "./components/RunSection/RunSection";
 import { ScopeCard } from "./components/ScopeCard/ScopeCard";
 import { HelpDialog } from "./components/HelpDialog/HelpDialog";
+import { HistoryDialog } from "./components/HistoryDialog/HistoryDialog";
 import "./CollectionApp.css";
 
 const SpinnerBase = asComponent(Spinner);
@@ -21,6 +22,7 @@ const SpinnerBase = asComponent(Spinner);
 /** The collection hub page. It wires the state hooks together and lays out the cards; each card owns its UI. */
 export function CollectionApp() {
   const [helpOpen, setHelpOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const sdk = useSdkReady();
   const draft = useDefinitionDraft();
   const scope = useProjectRepos();
@@ -43,6 +45,16 @@ export function CollectionApp() {
         titleSize={TitleSize.Large}
         description="Preview and apply the same change across many Git repositories, within the projects and repositories you can access."
         commandBarItems={[
+          {
+            id: "history",
+            text: "History",
+            ariaLabel: "Bulk change history",
+            iconProps: { iconName: "History" },
+            subtle: true,
+            important: true,
+            tooltipProps: { text: "History" },
+            onActivate: () => setHistoryOpen(true),
+          },
           {
             id: "help",
             text: "Help",
@@ -75,6 +87,7 @@ export function CollectionApp() {
         ]}
       />
       {helpOpen ? <HelpDialog onDismiss={() => setHelpOpen(false)} /> : null}
+      {historyOpen ? <HistoryDialog onDismiss={() => setHistoryOpen(false)} /> : null}
 
       <div className="page-content page-content-top bc-page">
         {sdk.error ? (
@@ -99,7 +112,7 @@ export function CollectionApp() {
           </div>
         </div>
 
-        <RunSection definition={draft.definition} targets={scope.targets} run={run} />
+        <RunSection definition={draft.definition} yamlText={draft.yamlText} targets={scope.targets} run={run} />
       </div>
     </PageBase>
   );

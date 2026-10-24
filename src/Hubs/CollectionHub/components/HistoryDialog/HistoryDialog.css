@@ -1,0 +1,81 @@
+.bc-history-loading {
+  display: flex;
+  justify-content: center;
+  padding: 32px 0;
+}
+
+.bc-history-empty {
+  margin: 16px 0;
+}
+
+.bc-history-list {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.bc-history-entry {
+  min-width: 0;
+  max-width: 100%;
+  padding: 12px 0 16px;
+  border-bottom: 1px solid var(--palette-neutral-8, #d6d6d6);
+}
+
+.bc-history-entry:first-child {
+  padding-top: 0;
+}
+
+.bc-history-entry:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.bc-history-entry-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.bc-history-entry-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.bc-history-definition {
+  margin-bottom: 12px;
+}
+
+.bc-history-definition summary {
+  cursor: pointer;
+  color: var(--text-primary-color, inherit);
+}
+
+.bc-history-editor {
+  min-width: 0;
+  max-width: 100%;
+  margin: 8px 0 0;
+  overflow: hidden;
+}
+
+.bc-history-editor .bc-monaco {
+  min-height: 200px;
+  height: 300px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.bc-history-table-scroll {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.bc-history-reference {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
