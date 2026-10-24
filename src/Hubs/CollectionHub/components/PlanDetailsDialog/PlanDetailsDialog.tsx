@@ -6,6 +6,7 @@ import { DialogBody } from "../../../../components/DialogBody/DialogBody";
 import { InlineText } from "../../../../components/InlineText/InlineText";
 import { DiffView } from "../DiffView/DiffView";
 import { OpResultList } from "../OpResultList/OpResultList";
+import "./PlanDetailsDialog.css";
 
 /**
  * Per-repository details shown in a dialog. Opening them below the table would push the rest of the
@@ -16,6 +17,7 @@ export function PlanDetailsDialog({ plan, onDismiss }: { plan: RepoPlan; onDismi
 
   return (
     <DialogBase
+      className="bc-plan-details-dialog"
       titleProps={{ text: `${plan.target.projectName} / ${plan.target.repositoryName}` }}
       onDismiss={onDismiss}
       footerButtonProps={[{ text: "Close", primary: true, onClick: onDismiss }]}
