@@ -127,7 +127,6 @@ export function appendOperation(yamlText: string, kind: OperationKind): string |
   return doc.toString({ lineWidth: 0 });
 }
 
-/** Count the operations currently in a definition, without full validation. Used for the UI only. */
 export function countOperations(yamlText: string): number {
   try {
     const doc = parseDocument(yamlText);

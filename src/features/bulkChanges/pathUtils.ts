@@ -45,11 +45,6 @@ export function tryNormalizeGitPath(input: string): string | null {
   }
 }
 
-/** Git paths are case-sensitive on the server; equality is exact after normalization. */
-export function isPathEqual(a: string, b: string): boolean {
-  return a === b;
-}
-
 /** Case-insensitive comparison, used only to warn about likely collisions. */
 export function isPathEqualIgnoreCase(a: string, b: string): boolean {
   return a.toLowerCase() === b.toLowerCase();
