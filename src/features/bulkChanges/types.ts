@@ -6,7 +6,7 @@
  */
 
 /** Discriminator for the supported bulk operations. */
-export type OperationKind = "add" | "addContent" | "delete" | "rename" | "replace";
+export type OperationKind = "add" | "addContent" | "applyPatch" | "delete" | "rename" | "replace";
 
 /** What to do when an operation's target file does not exist. */
 export type MissingFileBehavior = "error" | "skip" | "createIfMissing";
@@ -42,6 +42,11 @@ export interface AddContentOperation {
   onFileMissing: MissingFileBehavior;
 }
 
+export interface ApplyPatchOperation {
+  kind: "applyPatch";
+  patch: string;
+}
+
 export interface DeleteOperation {
   kind: "delete";
   path: string;
@@ -72,7 +77,13 @@ export interface ReplaceOperation {
   onNoMatch: NoMatchBehavior;
 }
 
-export type BulkOperation = AddOperation | AddContentOperation | DeleteOperation | RenameOperation | ReplaceOperation;
+export type BulkOperation =
+  | AddOperation
+  | AddContentOperation
+  | ApplyPatchOperation
+  | DeleteOperation
+  | RenameOperation
+  | ReplaceOperation;
 
 /** How a repository is written to. */
 export type WriteMode = "directCommit" | "pullRequest";

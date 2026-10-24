@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   AddContentOperation,
   AddOperation,
+  ApplyPatchOperation,
   BulkChangeDefinition,
   BulkOperation,
   ContentPosition,
@@ -14,6 +15,7 @@ import {
   ReplaceOperation,
 } from "./types";
 import { tryNormalizeGitPath } from "./pathUtils";
+import { parseGitPatch } from "./gitPatch";
 
 const VALID_FLAGS = /^[igmusvy]*$/;
 
@@ -40,6 +42,26 @@ const addContentSchema = z.strictObject({
     lineNumber: z.number().int().min(1, "must be 1 or greater").nullable().default(null),
     skipIfPresent: z.boolean().default(true),
     onFileMissing: z.enum(["error", "skip", "createIfMissing"]).default("error"),
+  }),
+});
+
+const gitPatchField = z
+  .string()
+  .min(1, "must not be empty")
+  .superRefine((patch, context) => {
+    try {
+      parseGitPatch(patch);
+    } catch (error) {
+      context.addIssue({
+        code: "custom",
+        message: error instanceof Error ? error.message : "must be a valid textual Git patch",
+      });
+    }
+  });
+
+const applyPatchSchema = z.strictObject({
+  applyPatch: z.strictObject({
+    patch: gitPatchField,
   }),
 });
 
@@ -70,7 +92,14 @@ const replaceSchema = z.strictObject({
   }),
 });
 
-const operationSchema = z.union([addSchema, addContentSchema, deleteSchema, renameSchema, replaceSchema]);
+const operationSchema = z.union([
+  addSchema,
+  addContentSchema,
+  applyPatchSchema,
+  deleteSchema,
+  renameSchema,
+  replaceSchema,
+]);
 
 export const definitionSchema = z.strictObject({
   writeMode: z.enum(["directCommit", "pullRequest"]).default("directCommit"),
@@ -166,6 +195,11 @@ function normalizeOperation(raw: RawOperationLike): BulkOperation {
       to: tryNormalizeGitPath(op.to) as string,
       onFileMissing: op.onFileMissing as MissingSourceBehavior,
     };
+    return operation;
+  }
+  if ("applyPatch" in raw) {
+    const op = raw.applyPatch;
+    const operation: ApplyPatchOperation = { kind: "applyPatch", patch: op.patch };
     return operation;
   }
   const op = raw.replace;

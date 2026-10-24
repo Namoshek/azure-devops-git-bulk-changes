@@ -116,6 +116,44 @@ operations:
     });
   });
 
+  it("accepts and normalizes a unified Git patch operation", () => {
+    const definition = valid(`
+operations:
+  - applyPatch:
+      patch: |
+        diff --git a/README.md b/README.md
+        --- a/README.md
+        +++ b/README.md
+        @@ -1 +1 @@
+        -old
+        +new
+`);
+
+    const operation = definition.operations[0];
+    expect(operation.kind).toBe("applyPatch");
+    if (operation.kind === "applyPatch") {
+      expect(operation.patch).toContain("diff --git a/README.md b/README.md");
+    }
+  });
+
+  it("rejects Git patch paths that escape the repository", () => {
+    const result = parseDefinition(`
+operations:
+  - applyPatch:
+      patch: |
+        diff --git a/../outside.txt b/../outside.txt
+        --- a/../outside.txt
+        +++ b/../outside.txt
+        @@ -1 +1 @@
+        -old
+        +new
+`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.join(" ")).toContain("stay inside the repository");
+    }
+  });
+
   it("rejects snake_case keys", () => {
     const result = parseDefinition(`
   write_mode: pull_request
@@ -288,7 +326,7 @@ glob: "**/*.ts"
 
   it("rejects `branch` in pull-request mode", () => {
     const result = parseDefinition(`
-  writeMode: pullRequest
+writeMode: pullRequest
 branch: feature/x
 operations:
   - add:

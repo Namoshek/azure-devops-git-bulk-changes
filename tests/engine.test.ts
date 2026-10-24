@@ -160,6 +160,49 @@ describe("applyOperation", () => {
     expect(result.message).toContain("binary");
   });
 
+  it("applies a multi-file Git patch in one workspace operation", () => {
+    const patch = `diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -1 +1 @@
+-old
++new
+diff --git a/new.txt b/new.txt
+new file mode 100644
+--- /dev/null
++++ b/new.txt
+@@ -0,0 +1 @@
++added
+`;
+    const ws = VirtualWorkspace.fromBaseFiles([file("/README.md", "old\n")]);
+    const result = applyOperation(ws, { kind: "applyPatch", patch }, 0, context);
+
+    expect(result.severity).toBe("applied");
+    expect(ws.get("/README.md")?.content).toBe("new\n");
+    expect(ws.get("/new.txt")?.content).toBe("added\n");
+  });
+
+  it("does not partially apply a multi-file patch when a later hunk fails", () => {
+    const patch = `diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -1 +1 @@
+-old
++new
+diff --git a/config.txt b/config.txt
+--- a/config.txt
++++ b/config.txt
+@@ -1 +1 @@
+-missing
++changed
+`;
+    const ws = VirtualWorkspace.fromBaseFiles([file("/README.md", "old\n"), file("/config.txt", "current\n")]);
+
+    expect(() => applyOperation(ws, { kind: "applyPatch", patch }, 0, context)).toThrow(/do not match/);
+    expect(ws.get("/README.md")?.content).toBe("old\n");
+    expect(ws.get("/config.txt")?.content).toBe("current\n");
+  });
+
   it("delete honours onFileMissing", () => {
     const ws = VirtualWorkspace.fromBaseFiles([file("/a.txt", "x")]);
     const remove = (path: string, onFileMissing: "error" | "skip", index: number) =>
@@ -456,6 +499,29 @@ describe("applyOperation", () => {
 });
 
 describe("planRepository", () => {
+  it("reads patch paths before planning and previews the patched content", () => {
+    const { sourcePaths, plan } = planOf(
+      `operations:
+  - applyPatch:
+      patch: |
+        diff --git a/README.md b/README.md
+        --- a/README.md
+        +++ b/README.md
+        @@ -1 +1 @@
+        -old
+        +new
+`,
+      [file("/README.md", "old\n")],
+    );
+
+    expect(sourcePaths).toEqual([{ kind: "literal", path: "/README.md" }]);
+    expect(plan.status).toBe("would-change");
+    expect(plan.desired).toEqual([
+      { kind: "edit", path: "/README.md", content: "new\n", baseObjectId: "sha-/README.md" },
+    ]);
+    expect(plan.diffs[0].diff).toContain("+new");
+  });
+
   it("reports would-change with the created file and its diff", () => {
     const { plan } = planOf(
       `operations:
@@ -732,6 +798,13 @@ describe("computeFileDiff", () => {
     expect(diff.additions).toBe(0);
     expect(diff.deletions).toBe(0);
     expect(diff.diff).not.toContain("+same");
+    expect(diff.diff).not.toContain("@@");
+
+    const workspace = VirtualWorkspace.fromBaseFiles([file("/old.txt", "same\n")]);
+    const result = applyOperation(workspace, { kind: "applyPatch", patch: diff.diff }, 0, { limits: DEFAULT_LIMITS });
+    expect(result.severity).toBe("applied");
+    expect(workspace.get("/old.txt")).toBeUndefined();
+    expect(workspace.get("/new.txt")?.content).toBe("same\n");
   });
 
   it("normalizes CRLF line endings for display", () => {

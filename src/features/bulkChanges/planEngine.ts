@@ -14,6 +14,7 @@ import {
 import { computeFileDiff } from "./diff";
 import { applyOperation } from "./operations";
 import { normalizeGitPath } from "./pathUtils";
+import { getGitPatchPaths } from "./gitPatch";
 import { VirtualWorkspace } from "./workspace";
 
 /** Default number of entries pulled in when an operation targets a directory. */
@@ -41,6 +42,11 @@ export function collectSourcePaths(
       case "addContent":
       case "replace":
         paths.push({ kind: "literal", path: normalizeGitPath(op.path) });
+        break;
+      case "applyPatch":
+        for (const path of getGitPatchPaths(op.patch)) {
+          paths.push({ kind: "literal", path });
+        }
         break;
       case "delete":
         paths.push(
@@ -282,6 +288,7 @@ export function planRepository(
   const warnings: string[] = [];
 
   definition.operations.forEach((op, index) => {
+    const operationPath = "path" in op ? op.path : "from" in op ? op.from : op.kind === "applyPatch" ? "patch" : "";
     try {
       const result = applyOperation(workspace, op, index, { limits });
       opResults.push(result);
@@ -293,7 +300,7 @@ export function planRepository(
         opResults.push({
           index,
           kind: op.kind,
-          path: "path" in op ? op.path : "from" in op ? op.from : "",
+          path: operationPath,
           severity: "error",
           message: err.message,
         });
@@ -301,7 +308,7 @@ export function planRepository(
         opResults.push({
           index,
           kind: op.kind,
-          path: "path" in op ? op.path : "from" in op ? op.from : "",
+          path: operationPath,
           severity: "error",
           message: `Operation ${index + 1} (${op.kind}) failed: ${String(err)}`,
         });

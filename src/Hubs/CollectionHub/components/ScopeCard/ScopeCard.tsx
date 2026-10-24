@@ -49,14 +49,13 @@ export function ScopeCard({ scope }: { scope: ScopeState }) {
           )}
         </FormItemBase>
 
-        <ButtonGroupBase>
+        <ButtonGroupBase className="flex-center">
           <Button text="Select all" onClick={() => scope.setAllRepos(true)} disabled={selectableCount === 0} />
           <Button text="Clear" onClick={() => scope.setAllRepos(false)} disabled={scope.selectedRepoIds.length === 0} />
+          <InlineText tone="muted">
+            {scope.selectedRepoIds.length} / {selectableCount} selected
+          </InlineText>
         </ButtonGroupBase>
-
-        <InlineText tone="muted">
-          {scope.selectedRepoIds.length} of {selectableCount} repositories selected
-        </InlineText>
       </CardBody>
     </CardBase>
   );

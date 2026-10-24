@@ -206,11 +206,6 @@ export function computeFileDiff(request: DiffRequest): FileDiff {
     body.push(`… ${omittedHunks} further hunk(s) not shown — diff truncated at ${request.maxDiffLines} lines`);
   }
 
-  if (hunks.length === 0) {
-    // Rename with identical content (or a no-op): header only.
-    body.push(`@@ -1,${a.length || 0} +1,${b.length || 0} @@`);
-  }
-
   return {
     path: newPath,
     originalPath: oldPath !== null && oldPath !== newPath ? oldPath : undefined,

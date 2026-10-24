@@ -33,6 +33,7 @@ describe("built-in examples", () => {
     const comments = {
       add: "# add a file",
       addContent: "# add content to an existing file",
+      applyPatch: "# apply a Git patch",
       delete: "# delete a file or directory",
       rename: "# rename or move a file",
       replace: "# change file content",
@@ -44,7 +45,9 @@ describe("built-in examples", () => {
         throw new Error(result.issues.join("; "));
       }
       for (const operation of result.definition.operations) {
-        expect(example.yaml).toContain(`  ${comments[operation.kind]}\n  - ${operation.kind}:`);
+        expect(example.yaml).toMatch(
+          new RegExp(`^  ${comments[operation.kind]}\\s*\\r?\\n  - ${operation.kind}:`, "m"),
+        );
       }
     }
   });

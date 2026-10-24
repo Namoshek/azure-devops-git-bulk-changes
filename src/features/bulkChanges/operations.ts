@@ -9,6 +9,7 @@ import {
   ReplaceOperation,
 } from "./types";
 import { VirtualWorkspace, WorkspaceFile } from "./workspace";
+import { applyGitPatch } from "./gitPatch";
 import { normalizeGitPath } from "./pathUtils";
 
 export interface OperationContext {
@@ -336,6 +337,8 @@ export function applyOperation(
       const normalized = normalizeGitPath(op.path);
       return applyAddContent(workspace, index, { ...op, path: normalized }, normalized, context.limits);
     }
+    case "applyPatch":
+      return applyGitPatch(workspace, op, index, context.limits);
     case "delete":
       return applyDelete(workspace, index, op, normalizeGitPath(op.path));
     case "rename":

@@ -138,9 +138,9 @@ export function ScopeSelector({ scope }: ScopeSelectorProps) {
             onClick={() => scope.setAllRepos(false)}
             disabled={scope.selectedRepoIds.length === 0}
           />
-        </div>
-        <div className="bc-muted monospaced-s rhythm-vertical-4">
-          {scope.selectedRepoIds.length} of {selectableCount} repositories selected
+          <div className="bc-muted monospaced-s rhythm-vertical-4">
+            {scope.selectedRepoIds.length} / {selectableCount} selected
+          </div>
         </div>
       </FormItemBase>
     </div>

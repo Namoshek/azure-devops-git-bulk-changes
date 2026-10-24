@@ -41,7 +41,7 @@ describe("appendOperation", () => {
     expect(appendOperation("name: [unclosed", "add")).toBeNull();
   });
 
-  it.each(["add", "addContent", "delete", "rename", "replace"] as const)(
+  it.each(["add", "addContent", "applyPatch", "delete", "rename", "replace"] as const)(
     "appends a %s operation that validates",
     (kind) => {
       const next = appendOperation(BLANK_DEFINITION, kind);
@@ -59,6 +59,10 @@ describe("appendOperation", () => {
     expect(addContent).toMatch(/^\s+position: end # start \| end \| lineNumber$/m);
     expect(addContent).toMatch(/^\s+lineNumber: 1 # 1-based; only used when position is lineNumber$/m);
     expect(addContent).toMatch(/^\s+onFileMissing: skip # error \| skip \| createIfMissing$/m);
+
+    const applyPatch = appendOperation(BLANK_DEFINITION, "applyPatch") as string;
+    expect(applyPatch).toContain("# apply a Git patch");
+    expect(applyPatch).toContain("text Git unified diff; binary and file-mode-only patches are unsupported");
 
     expect(appendOperation(BLANK_DEFINITION, "delete") as string).toMatch(/^\s+onFileMissing: skip # error \| skip$/m);
     expect(appendOperation(BLANK_DEFINITION, "rename") as string).toMatch(/^\s+onFileMissing: skip # error \| skip$/m);

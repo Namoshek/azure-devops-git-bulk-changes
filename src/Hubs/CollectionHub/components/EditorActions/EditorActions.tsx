@@ -9,6 +9,7 @@ import "./EditorActions.css";
 const OPERATIONS: { kind: OperationKind; label: string }[] = [
   { kind: "add", label: "Add file" },
   { kind: "addContent", label: "Add content" },
+  { kind: "applyPatch", label: "Apply Git patch" },
   { kind: "delete", label: "Delete" },
   { kind: "rename", label: "Rename / move" },
   { kind: "replace", label: "Replace content" },

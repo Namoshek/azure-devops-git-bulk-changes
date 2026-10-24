@@ -30,12 +30,13 @@ preview can you apply the changes.
   `Dialog`, …) from the [component library](https://developer.microsoft.com/en-us/azure-devops/components),
   so the hub keeps a polished look and adapts to either host theme.
 - **Operations**: `add` (optionally only when missing), `addContent` (insert at the start, the end or a
-  line number), `delete` (a file, or a whole directory with `recursive: true`), `rename`/`move`, and
-  `replace` (literal string or regular expression, with configurable `onNoMatch` behaviour). Missing-file
-  handling uses `onFileMissing`, separately from replace's `onNoMatch`. Operations are appended one at a
-  time, so a definition can grow to any number of steps — the templates are starting points you extend,
-  not the only supported scenarios. Keys and enum values are camelCase, and each appended operation lists
-  the allowed values of its enum fields in a comment.
+  line number), `applyPatch` (apply a unified Git patch to one or more text files), `delete` (a file, or
+  a whole directory with `recursive: true`), `rename`/`move`, and `replace` (literal string or regular
+  expression, with configurable `onNoMatch` behaviour). Binary patches and file-mode changes are not
+  supported. Missing-file handling uses `onFileMissing`, separately from replace's `onNoMatch`.
+  Operations are appended one at a time, so a definition can grow to any number of steps — the templates
+  are starting points you extend, not the only supported scenarios. Keys and enum values are camelCase,
+  and each appended operation lists the allowed values of its enum fields in a comment.
 - **Exact, case-sensitive paths only** in v1 — no glob matching, so a definition says precisely which
   files it touches. A definition that lists a missing path surfaces as a per-repository skip or error
   instead of silently doing nothing.

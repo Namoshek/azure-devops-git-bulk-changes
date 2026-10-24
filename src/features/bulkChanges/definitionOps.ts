@@ -29,6 +29,18 @@ const TEMPLATES: Record<OperationKind, Record<string, unknown>> = {
       onFileMissing: "skip",
     },
   },
+  applyPatch: {
+    applyPatch: {
+      patch: [
+        "diff --git a/README.md b/README.md",
+        "--- a/README.md",
+        "+++ b/README.md",
+        "@@ -1 +1 @@",
+        "-old text",
+        "+new text",
+      ].join("\n"),
+    },
+  },
   delete: { delete: { path: "/obsolete.txt", recursive: false, onFileMissing: "skip" } },
   rename: { rename: { from: "/settings.json", to: "/config.json", onFileMissing: "skip" } },
   replace: {
@@ -42,14 +54,15 @@ const TEMPLATES: Record<OperationKind, Record<string, unknown>> = {
   },
 };
 
-/** Same-line comments on a template's fields, listing the allowed values of enum fields. */
+/** Same-line comments that clarify template fields and list allowed enum values. */
 const FIELD_COMMENTS: Record<OperationKind, Record<string, string>> = {
   add: {},
   addContent: {
     position: "start | end | lineNumber",
-    lineNumber: "only used when position is lineNumber (starts at line 1)",
+    lineNumber: "1-based; only used when position is lineNumber",
     onFileMissing: "error | skip | createIfMissing",
   },
+  applyPatch: { patch: "text Git unified diff; binary and file-mode-only patches are unsupported" },
   delete: { onFileMissing: "error | skip" },
   rename: { onFileMissing: "error | skip" },
   replace: { onNoMatch: "error | skip | createIfMissing" },
@@ -59,6 +72,7 @@ const FIELD_COMMENTS: Record<OperationKind, Record<string, string>> = {
 const COMMENTS: Record<OperationKind, string> = {
   add: "add a file",
   addContent: "add content to an existing file",
+  applyPatch: "apply a Git patch",
   delete: "delete a file or directory",
   rename: "rename or move a file",
   replace: "change file content",
@@ -96,6 +110,7 @@ export function appendOperation(yamlText: string, kind: OperationKind): string |
   if (!(existing instanceof YAMLSeq)) {
     root.set("operations", seq);
   }
+  seq.flow = false;
 
   const step = { ...TEMPLATES[kind] };
   const item = doc.createNode(step) as unknown as YAMLMap<unknown, unknown>;
