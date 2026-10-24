@@ -1,6 +1,6 @@
 import { parseDocument, YAMLSeq } from "yaml";
-import { appendOperation, BLANK_DEFINITION, countOperations } from "../src/features/bulkChanges/definitionOps";
-import { parseDefinition } from "../src/features/bulkChanges/schema";
+import { appendOperation, BLANK_DEFINITION, countOperations } from "../src/domain/bulkChanges/definitionOps";
+import { parseDefinition } from "../src/domain/bulkChanges/schema";
 
 describe("appendOperation", () => {
   it("appends an operation to an existing list", () => {

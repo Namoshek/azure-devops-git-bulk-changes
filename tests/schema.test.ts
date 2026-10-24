@@ -1,4 +1,4 @@
-import { parseDefinition } from "../src/features/bulkChanges/schema";
+import { parseDefinition } from "../src/domain/bulkChanges/schema";
 
 function valid(definition: string) {
   const result = parseDefinition(definition);

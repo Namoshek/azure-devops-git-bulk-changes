@@ -1,8 +1,8 @@
 import React from "react";
 import { Button } from "azure-devops-ui/Components/Button/Button";
 import { IMenuProps } from "azure-devops-ui/Menu";
-import { EXAMPLES } from "../../../../features/bulkChanges/examples";
-import { OperationKind } from "../../../../features/bulkChanges/types";
+import { EXAMPLES } from "../../../../domain/bulkChanges/examples";
+import { OperationKind } from "../../../../domain/bulkChanges/types";
 import { ButtonGroupBase, MenuButtonBase } from "../../../../components/uiCompat";
 import "./EditorActions.css";
 

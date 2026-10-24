@@ -5,13 +5,13 @@ import {
   DEFAULT_LIMITS,
   RepoSnapshot,
   RepoTarget,
-} from "../src/features/bulkChanges/types";
-import { planRepository } from "../src/features/bulkChanges/planEngine";
-import { VirtualWorkspace } from "../src/features/bulkChanges/workspace";
-import { applyOperation } from "../src/features/bulkChanges/operations";
-import { computeFileDiff } from "../src/features/bulkChanges/diff";
-import { planToPushChanges } from "../src/features/bulkChanges/pushChanges";
-import { parseDefinition } from "../src/features/bulkChanges/schema";
+} from "../src/domain/bulkChanges/types";
+import { planRepository } from "../src/domain/bulkChanges/engine/planEngine";
+import { VirtualWorkspace } from "../src/domain/bulkChanges/engine/workspace";
+import { applyOperation } from "../src/domain/bulkChanges/engine/operations";
+import { computeFileDiff } from "../src/domain/bulkChanges/engine/diff";
+import { planToPushChanges } from "../src/services/bulkChanges/pushChanges";
+import { parseDefinition } from "../src/domain/bulkChanges/schema";
 
 function file(path: string, content: string, objectId = `sha-${path}`): BaseFile {
   return { path, content, objectId, isBinary: false };

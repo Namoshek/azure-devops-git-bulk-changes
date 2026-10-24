@@ -9,11 +9,11 @@ import {
   RepoSnapshot,
   RepoTarget,
   SourcePath,
-} from "./types";
-import { collectSourcePaths, planRepository } from "./planEngine";
+} from "../../domain/bulkChanges/types";
+import { collectSourcePaths, planRepository } from "../../domain/bulkChanges/engine/planEngine";
 import { buildRefUpdate, planToPushChanges, refName } from "./pushChanges";
 import { RepoAccess } from "./repoAccess";
-import { mapWithConcurrency } from "./concurrency";
+import { mapWithConcurrency } from "../../utils/concurrency";
 import { getErrorMessage } from "../../utils/errorUtils";
 
 /** Branch a definition operates on for a given repository. */

@@ -1,4 +1,4 @@
-import { FileDiff } from "./types";
+import { FileDiff } from "../types";
 
 const CONTEXT_LINES = 3;
 /** Above this many comparison cells the diff falls back to a whole-block replacement. */

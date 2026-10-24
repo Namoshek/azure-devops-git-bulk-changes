@@ -1,8 +1,8 @@
 import React from "react";
 import { StatusSize } from "azure-devops-ui/Components/Status/Status.Props";
 import { Statuses, StatusType } from "azure-devops-ui/Components/Status/Status";
-import { RunStage, statusLabel } from "../../features/bulkChanges/summary";
-import { ApplyStatus, PlanStatus } from "../../features/bulkChanges/types";
+import { RunStage, statusLabel } from "../../domain/bulkChanges/summary";
+import { ApplyStatus, PlanStatus } from "../../domain/bulkChanges/types";
 import { StatusBase, TooltipBase } from "../uiCompat";
 import "./StatusLabel.css";
 

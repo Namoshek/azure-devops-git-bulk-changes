@@ -1,4 +1,4 @@
-import { BaseFile, RepoTarget, SourcePath } from "./types";
+import { BaseFile, RepoTarget, SourcePath } from "../../domain/bulkChanges/types";
 
 /** One entry of a `GitPush` change list, in the shape the REST API expects. */
 export interface PushChange {

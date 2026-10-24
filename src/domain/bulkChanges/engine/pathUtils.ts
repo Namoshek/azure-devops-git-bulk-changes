@@ -1,4 +1,4 @@
-import { BulkChangeError } from "./types";
+import { BulkChangeError } from "../types";
 
 /**
  * Normalize a user-supplied repository path to Git's canonical POSIX form.

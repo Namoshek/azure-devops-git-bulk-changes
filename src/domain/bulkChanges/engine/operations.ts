@@ -7,7 +7,7 @@ import {
   EngineLimits,
   OpResult,
   ReplaceOperation,
-} from "./types";
+} from "../types";
 import { VirtualWorkspace, WorkspaceFile } from "./workspace";
 import { applyGitPatch } from "./gitPatch";
 import { normalizeGitPath } from "./pathUtils";

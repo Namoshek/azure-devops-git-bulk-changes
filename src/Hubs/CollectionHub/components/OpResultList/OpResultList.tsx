@@ -1,5 +1,5 @@
 import React from "react";
-import { OpResult } from "../../../../features/bulkChanges/types";
+import { OpResult } from "../../../../domain/bulkChanges/types";
 import { EllipsisText } from "../../../../components/EllipsisText/EllipsisText";
 import { InlineText, TextTone } from "../../../../components/InlineText/InlineText";
 import "./OpResultList.css";

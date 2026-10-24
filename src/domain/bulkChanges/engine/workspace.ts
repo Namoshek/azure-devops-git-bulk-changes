@@ -1,4 +1,4 @@
-import { BaseFile, DesiredChange } from "./types";
+import { BaseFile, DesiredChange } from "../types";
 import { isPathEqualIgnoreCase, normalizeGitPath } from "./pathUtils";
 
 /** A single file inside the virtual workspace. */

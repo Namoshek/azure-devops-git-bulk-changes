@@ -10,7 +10,7 @@ import {
   RepoSnapshot,
   RepoTarget,
   SourcePath,
-} from "./types";
+} from "../types";
 import { computeFileDiff } from "./diff";
 import { applyOperation } from "./operations";
 import { normalizeGitPath } from "./pathUtils";

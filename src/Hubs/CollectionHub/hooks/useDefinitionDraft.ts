@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
-import { appendOperation, BLANK_DEFINITION } from "../../../features/bulkChanges/definitionOps";
-import { EXAMPLES, findExample } from "../../../features/bulkChanges/examples";
-import { ParseResult, parseDefinition } from "../../../features/bulkChanges/schema";
-import { BulkChangeDefinition, OperationKind } from "../../../features/bulkChanges/types";
+import { appendOperation, BLANK_DEFINITION } from "../../../domain/bulkChanges/definitionOps";
+import { EXAMPLES, findExample } from "../../../domain/bulkChanges/examples";
+import { ParseResult, parseDefinition } from "../../../domain/bulkChanges/schema";
+import { BulkChangeDefinition, OperationKind } from "../../../domain/bulkChanges/types";
 
 export interface DefinitionDraft {
   yamlText: string;

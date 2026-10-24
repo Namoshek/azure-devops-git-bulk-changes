@@ -1,4 +1,4 @@
-import { BulkChangeError, DesiredChange } from "./types";
+import { BulkChangeError, DesiredChange } from "../../domain/bulkChanges/types";
 import { PushChange } from "./repoAccess";
 
 /** Full ref name (`refs/heads/<branch>`) for a branch that may already be fully qualified. */

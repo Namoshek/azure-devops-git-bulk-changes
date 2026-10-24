@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { listProjects, listRepositories } from "../../../features/bulkChanges/repoClient";
-import { mapWithConcurrency } from "../../../features/bulkChanges/concurrency";
-import { RepoTarget } from "../../../features/bulkChanges/types";
+import { listProjects, listRepositories } from "../../../infrastructure/azureDevOps/repoClient";
+import { mapWithConcurrency } from "../../../utils/concurrency";
+import { RepoTarget } from "../../../domain/bulkChanges/types";
 import { getErrorMessage } from "../../../utils/errorUtils";
 
 /** A repository row in the selector: the target plus the project it belongs to. */

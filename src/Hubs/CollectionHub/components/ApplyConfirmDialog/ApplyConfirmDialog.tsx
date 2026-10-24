@@ -1,6 +1,6 @@
 import React from "react";
-import { RunSummary } from "../../../../features/bulkChanges/summary";
-import { WriteMode } from "../../../../features/bulkChanges/types";
+import { RunSummary } from "../../../../domain/bulkChanges/summary";
+import { WriteMode } from "../../../../domain/bulkChanges/types";
 import { DialogBase } from "../../../../components/uiCompat";
 import { DialogBody } from "../../../../components/DialogBody/DialogBody";
 import { InlineText } from "../../../../components/InlineText/InlineText";

@@ -1,6 +1,6 @@
 import { applyPatch as applyUnifiedPatch, parsePatch } from "diff";
 import type { StructuredPatch } from "diff";
-import { ApplyPatchOperation, BulkChangeError, EngineLimits, OpResult } from "./types";
+import { ApplyPatchOperation, BulkChangeError, EngineLimits, OpResult } from "../types";
 import { tryNormalizeGitPath } from "./pathUtils";
 import { VirtualWorkspace } from "./workspace";
 

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { deriveSummary, RunStage } from "../../../../features/bulkChanges/summary";
-import { ApplyResult, BulkChangeDefinition, RepoTarget } from "../../../../features/bulkChanges/types";
+import { deriveSummary, RunStage } from "../../../../domain/bulkChanges/summary";
+import { ApplyResult, BulkChangeDefinition, RepoTarget } from "../../../../domain/bulkChanges/types";
 import { BulkRunState, definitionKeyOf, isPreviewCurrent } from "../../hooks/useBulkRun";
 import { ApplyConfirmDialog } from "../ApplyConfirmDialog/ApplyConfirmDialog";
 import { PlanDetailsDialog } from "../PlanDetailsDialog/PlanDetailsDialog";

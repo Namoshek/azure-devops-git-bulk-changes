@@ -1,5 +1,5 @@
 import React from "react";
-import { FileDiff } from "../../../../features/bulkChanges/types";
+import { FileDiff } from "../../../../domain/bulkChanges/types";
 import { InlineText } from "../../../../components/InlineText/InlineText";
 import "./DiffView.css";
 

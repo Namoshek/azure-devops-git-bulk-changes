@@ -14,8 +14,8 @@ import {
   RenameOperation,
   ReplaceOperation,
 } from "./types";
-import { tryNormalizeGitPath } from "./pathUtils";
-import { parseGitPatch } from "./gitPatch";
+import { tryNormalizeGitPath } from "./engine/pathUtils";
+import { parseGitPatch } from "./engine/gitPatch";
 
 const VALID_FLAGS = /^[igmusvy]*$/;
 
