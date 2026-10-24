@@ -1,51 +1,25 @@
 # Azure DevOps Git Bulk Changes
 
-An Azure DevOps extension that lets project administrators perform bulk changes in Git repositories across an organization.
+An Azure DevOps extension that lets users perform bulk changes in Git repositories across an organization.
 
 ![Git Bulk Changes UI](images/screenshot_01.png)
 
 ## What it does
 
-The extension adds a **Git Bulk Changes** page to the collection settings hub. Pick the repositories you
-want to change (a single multi-select over every repository you can access, each labelled with its
-project), describe the change once, and preview it across every selected repository before writing anything.
+The extension adds a **Git Bulk Changes** page to the collection settings. Pick the repositories you
+want to change, describe the change once, and preview it across every selected repository before writing anything.
 
 The preview is a read-only dry run: it reads each repository, applies the operations in memory and
 shows a per-repository status (`Would change`, `No change`, `Skipped`, `Error`) together with the
 exact unified diff and the reason for every skipped or failed repository. Only after you review the
 preview can you apply the changes.
 
-## Features
+## How it works
 
-- **Multi-select repository scope.** You pick repositories directly from one filterable list that spans
-  every project you can access (each entry shows its project), so filtering matches across all repositories
-  at once. You only ever see repositories you have permissions for — the extension asks Azure DevOps for the
-  caller's own accessible list and never enumerates the organization beyond that.
-- **Declarative change definitions** written as YAML and validated with `zod` before anything runs.
-  A definition is an ordered list of operations plus how to write the result. The definition is edited
-  in a Monaco editor (the same editor Azure Repos uses for file editing) with YAML syntax highlighting,
-  following the host's light or dark theme. The **Examples** button opens a menu that replaces the editor
-  content with a ready-to-edit sample — it is a one-shot action, not a persistent selection.
-- **Standard Azure DevOps components** (`Button`, `Dropdown`, `Table`, `Pill`, `MessageCard`, `MenuButton`,
-  `Dialog`, …) from the [component library](https://developer.microsoft.com/en-us/azure-devops/components),
-  so the hub keeps a polished look and adapts to either host theme.
-- **Operations**: `add` (optionally only when missing), `addContent` (insert at the start, the end or a
-  line number), `applyPatch` (apply a unified Git patch to one or more text files), `delete` (a file, or
-  a whole directory with `recursive: true`), `rename`/`move`, and `replace` (literal string or regular
-  expression, with configurable `onNoMatch` behaviour). Binary patches and file-mode changes are not
-  supported. Missing-file handling uses `onFileMissing`, separately from replace's `onNoMatch`.
-  Operations are appended one at a time, so a definition can grow to any number of steps — the templates
-  are starting points you extend, not the only supported scenarios. Keys and enum values are camelCase,
-  and each appended operation lists the allowed values of its enum fields in a comment.
-- **Exact, case-sensitive paths only** in v1 — no glob matching, so a definition says precisely which
-  files it touches. A definition that lists a missing path surfaces as a per-repository skip or error
-  instead of silently doing nothing.
-- **Two write modes**, chosen in the YAML (`writeMode`): commit directly to a branch, or create a
-  branch and open a pull request per repository. Pull requests can opt into Azure DevOps auto-complete,
-  which merges only after the configured policies and requirements pass.
-- **Dry-run diffs computed locally**, never sent to the server.
-- **Fail-isolated execution**: one repository failing never stops the others, and every failure is
-  reported with a specific reason in the result row.
+1. **Pick the scope.** Select the repositories to change from a single filterable list that spans every project you can access (each entry is labelled with its project). The list only contains repositories the signed-in user can read, so filtering matches across all of them at once.
+2. **Describe the change once.** A definition is a small YAML document: an ordered list of operations plus how the result should be written (`writeMode`, `commitMessage`, and `pullRequest`).
+3. **Preview.** The preview is a read-only dry run. Each repository is read, the operations are applied in memory, and you get a per-repository status with the exact unified diff and a specific reason for anything skipped or failed. Diffs are computed locally and never sent to Azure DevOps.
+4. **Apply.** Only after reviewing the preview and accepting the changes, they are written to the repositories. If any repository cannot be updated, it is skipped with a reason, and the rest continue independently.
 
 ### Example definition
 
@@ -74,38 +48,33 @@ operations:
       onNoMatch: skip # error | skip | createIfMissing
 ```
 
-Five ready-made templates are available in the editor — **Add LICENSE where missing**,
-**Rename settings.json**, **Update agent pool in azure-pipelines.yml**, **Delete .vs directory** and
-**Add credits to README.md** — each of which you can
-extend by adding more operations, or start from a blank definition and build your own.
+The extension provides a few example definitions as a starting point. Adding additional operations is straightforward and can be done by using the buttons below the editor.
 
 ## Getting started
 
-1. Install the extension into your Azure DevOps organization.
-2. Open the collection-level **Settings** hub and choose **Git Bulk Changes**.
-3. Select the repositories to change.
-4. Write (or pick) a change definition and press **Preview**.
-5. Review the per-repository table and diffs, then press **Apply changes…** to commit or open pull
-   requests.
+### 1. Install the extension
 
-Direct commits require Contribute permission on the target branch; pull-request mode only requires
-read access plus the ability to create a pull request. Repositories you cannot access are simply not
-listed, and repositories you can read but not write are reported as failures during apply.
+Install [**Git Bulk Changes** from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=namoshek.ado-git-bulk-changes) into your Azure DevOps organization.
+
+### 2. Perform your first bulk change
+
+To perform your first bulk change, follow these steps:
+
+- Open the collection settings from the project overview.
+- Choose **Git Bulk Changes** from the settings menu (section "Extensions").
+- Fill out the form, preview the changes, and apply them to the selected repositories.
 
 ## Permissions
 
-All API calls are made directly from the browser using the signed-in user's OAuth token. There is no server-side component or service principal.
+The extension requests the following OAuth scopes on behalf of the signed-in user:
 
-The extension requests these OAuth scopes:
+| Scope            | Purpose                                                                      |
+| ---------------- | ---------------------------------------------------------------------------- |
+| `vso.code`       | Required to read repositories and their contents                             |
+| `vso.code_write` | Required to write changes to repositories (create commits and pull requests) |
+| `vso.project`    | Required to read accessible projects (required for listing repositories)     |
 
-| Scope            | Purpose                                                                                                                                           |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `vso.project`    | List the projects the caller can access and read project details, so the scope selector can show only repositories visible to the signed-in user. |
-| `vso.code`       | Read repository metadata, default branches and file contents for the read-only dry run.                                                           |
-| `vso.code_write` | Create the push (commit or branch) and, in pull-request mode, create the pull request. Only used when you press **Apply**.                        |
-
-The extension deliberately does **not** request a broader scope such as `vso.full`: everything it can
-do is bounded by the caller's own project and repository permissions.
+All calls go directly to the Azure DevOps REST API with the signed-in user's OAuth token. There is no server component and no service principal. Since the extension only lives in an iframe in the browser, it cannot perform any actions beyond what the signed-in user is permitted to do and it will never leak any data to a third party.
 
 ## Development
 
@@ -118,14 +87,12 @@ This creates `dev.crt` and `dev.key` files in the project root, which are used b
 
 To build an extension package for local development, run `npm run package:dev` which uses `vss-extension.dev.json` to override the manifest and point to the local development server
 
-````sh
-
 ### Build
 
 ```sh
 npm install
 npm run build
-````
+```
 
 ### Run linter & tests
 

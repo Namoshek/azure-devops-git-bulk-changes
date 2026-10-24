@@ -52,7 +52,11 @@
     "enablemarketplaceqna": "false",
     "url": "https://github.com/Namoshek/azure-devops-git-bulk-changes/issues"
   },
-  "screenshots": [{ "path": "images/screenshot_01.png" }],
+  "screenshots": [
+    { "path": "images/screenshot_01.png" },
+    { "path": "images/screenshot_02.png" },
+    { "path": "images/screenshot_03.png" }
+  ],
   "contributions": [
     {
       "id": "collection-settings-hub",
