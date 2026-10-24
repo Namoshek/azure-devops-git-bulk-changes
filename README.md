@@ -29,14 +29,16 @@ preview can you apply the changes.
 - **Standard Azure DevOps components** (`Button`, `Dropdown`, `Table`, `Pill`, `MessageCard`, `MenuButton`,
   `Dialog`, …) from the [component library](https://developer.microsoft.com/en-us/azure-devops/components),
   so the hub keeps a polished look and adapts to either host theme.
-- **Operations**: `add` (optionally only when missing), `delete`, `rename`/`move`, and `replace`
-  (literal string or regular expression, with configurable `on_no_match` behaviour). Operations are
-  appended one at a time, so a definition can grow to any number of steps — the templates are
-  starting points you extend, not the only supported scenarios.
+- **Operations**: `add` (optionally only when missing), `addContent` (insert at the start, the end or a
+  line number), `delete` (a file, or a whole directory with `recursive: true`), `rename`/`move`, and
+  `replace` (literal string or regular expression, with configurable `onNoMatch` behaviour). Operations
+  are appended one at a time, so a definition can grow to any number of steps — the templates are
+  starting points you extend, not the only supported scenarios. Keys and enum values are camelCase, and
+  each appended operation lists the allowed values of its enum fields in a comment.
 - **Exact, case-sensitive paths only** in v1 — no glob matching, so a definition says precisely which
   files it touches. A definition that lists a missing path surfaces as a per-repository skip or error
   instead of silently doing nothing.
-- **Two write modes**, chosen in the YAML (`write_mode`): commit directly to a branch, or create a
+- **Two write modes**, chosen in the YAML (`writeMode`): commit directly to a branch, or create a
   branch and open a pull request per repository.
 - **Dry-run diffs computed locally**, never sent to the server.
 - **Fail-isolated execution**: one repository failing never stops the others, and every failure is
@@ -46,16 +48,16 @@ preview can you apply the changes.
 
 ```yaml
 name: Add LICENSE where missing
-write_mode: pull_request
-branch_name: add-license
-commit_message: "Add MIT LICENSE file"
-pull_request:
+writeMode: pullRequest # directCommit | pullRequest
+branchName: add-license
+commitMessage: "Add MIT LICENSE file"
+pullRequest:
   title: "Add MIT LICENSE file"
   description: "Added by the Git Bulk Changes extension."
 operations:
   - add:
       path: /LICENSE
-      only_if_missing: true
+      onlyIfMissing: true
       content: |
         MIT License
         ...
@@ -63,11 +65,12 @@ operations:
       path: /azure-pipelines.yml
       find: "pool: Azure"
       replace: 'pool: { name: "Self-Hosted", vmImages: AzureVMImage }'
-      on_no_match: skip
+      onNoMatch: skip # error | skip | createIfMissing
 ```
 
-Three ready-made templates are available in the editor — **Add LICENSE where missing**,
-**Rename settings.json** and **Update agent pool in azure-pipelines.yml** — each of which you can
+Five ready-made templates are available in the editor — **Add LICENSE where missing**,
+**Rename settings.json**, **Update agent pool in azure-pipelines.yml**, **Delete .vs directory** and
+**Add credits to README.md** — each of which you can
 extend by adding more operations, or start from a blank definition and build your own.
 
 ## Getting started

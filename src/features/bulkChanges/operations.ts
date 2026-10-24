@@ -1,4 +1,13 @@
-import { AddOperation, BulkOperation, BulkChangeError, EngineLimits, OpResult, ReplaceOperation } from "./types";
+import {
+  AddContentOperation,
+  AddOperation,
+  BulkOperation,
+  BulkChangeError,
+  DeleteOperation,
+  EngineLimits,
+  OpResult,
+  ReplaceOperation,
+} from "./types";
 import { VirtualWorkspace, WorkspaceFile } from "./workspace";
 import { normalizeGitPath } from "./pathUtils";
 
@@ -93,19 +102,112 @@ function applyAdd(
   return result(index, op, path, "applied", `${path} already exists — its content would be replaced.`);
 }
 
-function applyDelete(workspace: VirtualWorkspace, index: number, path: string, onMissing: "error" | "skip"): OpResult {
-  const existing = workspace.get(path);
-  const op = { kind: "delete" as const, path, onMissing };
+function applyDelete(workspace: VirtualWorkspace, index: number, op: DeleteOperation, path: string): OpResult {
+  const existing = op.recursive ? workspace.paths().filter((candidate) => isInTree(candidate, path)) : [];
+  const found = op.recursive ? existing.length > 0 : workspace.has(path);
 
-  if (!existing) {
-    if (onMissing === "skip") {
-      return result(index, op, path, "noop", `${path} does not exist — deletion skipped.`);
+  if (!found) {
+    const noun = op.recursive ? "does not exist or is empty" : "does not exist";
+    if (op.onMissing === "skip") {
+      return result(index, op, path, "noop", `${path} ${noun} — deletion skipped.`);
     }
-    return result(index, op, path, "error", `${path} does not exist in this repository.`);
+    return result(index, op, path, "error", `${path} ${noun} in this repository.`);
+  }
+
+  if (op.recursive) {
+    const removed = workspace.removeTree(path);
+    return result(index, op, path, "applied", `${path}: ${removed.length} file(s) would be deleted.`);
   }
 
   workspace.remove(path);
   return result(index, op, path, "applied", `${path} would be deleted.`);
+}
+
+function isInTree(candidate: string, root: string): boolean {
+  return candidate === root || candidate.startsWith(root === "/" ? "/" : `${root}/`);
+}
+
+/** `text` with every line ending replaced by `eol`, and exactly one terminating line ending. */
+function asWholeLines(text: string, eol: string): string {
+  const converted = text.replace(/\r\n|\r|\n/g, eol);
+  return converted.endsWith(eol) ? converted : `${converted}${eol}`;
+}
+
+function applyAddContent(
+  workspace: VirtualWorkspace,
+  index: number,
+  op: AddContentOperation,
+  path: string,
+  limits: EngineLimits,
+): OpResult {
+  const existing = workspace.get(path);
+
+  if (!existing) {
+    if (op.onMissing === "createIfMissing") {
+      workspace.set(path, asWholeLines(op.content, "\n"));
+      return result(index, op, path, "applied", `${path} does not exist — it would be created with the content.`);
+    }
+    if (op.onMissing === "skip") {
+      return result(index, op, path, "noop", `${path} does not exist — nothing added.`);
+    }
+    return result(index, op, path, "error", `${path} does not exist in this repository.`);
+  }
+
+  if (existing.content === null) {
+    const detail = `cannot be modified because ${describeUnreadable(existing)}`;
+    return result(index, op, path, op.onMissing === "skip" ? "noop" : "error", `${path} ${detail}.`);
+  }
+
+  const current = existing.content;
+  const needle = op.content.replace(/\r\n|\r/g, "\n").trim();
+  if (op.skipIfPresent && needle !== "" && current.replace(/\r\n|\r/g, "\n").includes(needle)) {
+    return result(index, op, path, "noop", `${path} already contains this content.`);
+  }
+
+  const eol = current.includes("\r\n") ? "\r\n" : "\n";
+  const block = asWholeLines(op.content, eol);
+  const lines = current.match(/[^\n]*\n|[^\n]+$/g) ?? [];
+
+  let next: string;
+  let where: string;
+  if (op.position === "start") {
+    next = block + current;
+    where = "at the start";
+  } else if (op.position === "lineNumber") {
+    const lineNumber = op.lineNumber ?? 1;
+    if (lineNumber > lines.length + 1) {
+      return result(
+        index,
+        op,
+        path,
+        "error",
+        `${path} has ${lines.length} line(s); cannot insert before line ${lineNumber}.`,
+      );
+    }
+    const before = lines.slice(0, lineNumber - 1).join("");
+    const after = lines.slice(lineNumber - 1).join("");
+    // Inserting after an unterminated last line needs a line ending of its own.
+    const separator = after === "" && before !== "" && !before.endsWith("\n") ? eol : "";
+    next = `${before}${separator}${block}${after}`;
+    where = `before line ${lineNumber}`;
+  } else {
+    const separator = current === "" || current.endsWith("\n") ? "" : eol;
+    next = `${current}${separator}${block}`;
+    where = "at the end";
+  }
+
+  if (next.length > limits.maxFileChars) {
+    return result(
+      index,
+      op,
+      path,
+      "error",
+      `${path} would grow to ${next.length} characters, above the ${limits.maxFileChars} character limit.`,
+    );
+  }
+
+  workspace.set(path, next);
+  return result(index, op, path, "applied", `${path}: content would be added ${where}.`);
 }
 
 function applyRename(
@@ -151,7 +253,7 @@ function applyReplace(
   const existing = workspace.get(path);
 
   if (!existing) {
-    if (op.onNoMatch === "create-if-missing") {
+    if (op.onNoMatch === "createIfMissing") {
       workspace.set(path, op.replace);
       return result(
         index,
@@ -190,7 +292,7 @@ function applyReplace(
     if (op.onNoMatch === "skip") {
       return result(index, op, path, "noop", `${path} does not contain the search pattern — replacement skipped.`);
     }
-    if (op.onNoMatch === "create-if-missing") {
+    if (op.onNoMatch === "createIfMissing") {
       // The file exists, so there is nothing to create: treated as a skip with a warning.
       return result(index, op, path, "warning", `${path} does not contain the search pattern — nothing changed.`);
     }
@@ -230,8 +332,12 @@ export function applyOperation(
   switch (op.kind) {
     case "add":
       return applyAdd(workspace, index, normalizeGitPath(op.path), op.content, op.onlyIfMissing);
+    case "addContent": {
+      const normalized = normalizeGitPath(op.path);
+      return applyAddContent(workspace, index, { ...op, path: normalized }, normalized, context.limits);
+    }
     case "delete":
-      return applyDelete(workspace, index, normalizeGitPath(op.path), op.onMissing);
+      return applyDelete(workspace, index, op, normalizeGitPath(op.path));
     case "rename":
       return applyRename(workspace, index, normalizeGitPath(op.from), normalizeGitPath(op.to), op.onMissing);
     case "replace": {

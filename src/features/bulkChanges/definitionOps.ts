@@ -1,4 +1,4 @@
-import { parseDocument, Document, YAMLMap, YAMLSeq } from "yaml";
+import { parseDocument, Document, Scalar, YAMLMap, YAMLSeq } from "yaml";
 import { OperationKind } from "./types";
 
 /**
@@ -7,36 +7,60 @@ import { OperationKind } from "./types";
  */
 export const BLANK_DEFINITION = `name: My bulk change
 description: Describe what this definition does.
-write_mode: pull_request
-branch_name: bulk-changes
-commit_message: "Apply bulk changes"
-pull_request:
+writeMode: pullRequest # directCommit | pullRequest
+branchName: bulk-changes
+commitMessage: "Apply bulk changes"
+pullRequest:
   title: "Apply bulk changes"
   description: "Applied by the Git Bulk Changes extension."
   draft: false
 operations: []
 `;
 
-/** The operation template inserted for each kind, using the YAML (snake_case) keys. */
+/** The operation template inserted for each kind, using the YAML keys. */
 const TEMPLATES: Record<OperationKind, Record<string, unknown>> = {
-  add: { add: { path: "/LICENSE", content: "file contents here", only_if_missing: true } },
-  delete: { delete: { path: "/obsolete.txt", on_missing: "skip" } },
-  rename: { rename: { from: "/settings.json", to: "/config.json", on_missing: "skip" } },
+  add: { add: { path: "/LICENSE", content: "file contents here", onlyIfMissing: true } },
+  addContent: {
+    addContent: {
+      path: "/README.md",
+      content: "text to add",
+      position: "end",
+      lineNumber: 1,
+      skipIfPresent: true,
+      onMissing: "skip",
+    },
+  },
+  delete: { delete: { path: "/obsolete.txt", recursive: false, onMissing: "skip" } },
+  rename: { rename: { from: "/settings.json", to: "/config.json", onMissing: "skip" } },
   replace: {
     replace: {
       path: "/azure-pipelines.yml",
       find: "pool: Azure",
       replace: "pool: Self",
-      use_regex: false,
-      on_no_match: "skip",
+      useRegex: false,
+      onNoMatch: "skip",
     },
   },
+};
+
+/** Same-line comments on a template's fields, listing the allowed values of enum fields. */
+const FIELD_COMMENTS: Record<OperationKind, Record<string, string>> = {
+  add: {},
+  addContent: {
+    position: "start | end | lineNumber",
+    lineNumber: "only used when position is lineNumber",
+    onMissing: "error | skip | createIfMissing",
+  },
+  delete: { onMissing: "error | skip" },
+  rename: { onMissing: "error | skip" },
+  replace: { onNoMatch: "error | skip | createIfMissing" },
 };
 
 /** A short comment describing the step, kept above it so the YAML stays self-documenting. */
 const COMMENTS: Record<OperationKind, string> = {
   add: "add a file",
-  delete: "delete a file",
+  addContent: "add content to an existing file",
+  delete: "delete a file or directory",
   rename: "rename or move a file",
   replace: "change file content",
 };
@@ -75,8 +99,15 @@ export function appendOperation(yamlText: string, kind: OperationKind): string |
   }
 
   const step = { ...TEMPLATES[kind] };
-  const item = doc.createNode(step);
+  const item = doc.createNode(step) as unknown as YAMLMap<unknown, unknown>;
   item.commentBefore = ` ${COMMENTS[kind]}`;
+  const body = item.get(kind) as YAMLMap<unknown, unknown>;
+  for (const [field, comment] of Object.entries(FIELD_COMMENTS[kind])) {
+    const value = body.get(field, true) as Scalar | undefined;
+    if (value) {
+      value.comment = ` ${comment}`;
+    }
+  }
   seq.add(item);
 
   return doc.toString({ lineWidth: 0 });

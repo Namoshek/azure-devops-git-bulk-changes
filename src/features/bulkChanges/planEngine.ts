@@ -19,6 +19,9 @@ import { VirtualWorkspace } from "./workspace";
 /** Default number of entries pulled in when an operation targets a directory. */
 export const DEFAULT_DIRECTORY_SCAN_LIMIT = 50;
 
+/** Most files a recursive delete may cover; a larger tree is rejected rather than partially deleted. */
+export const DEFAULT_TREE_SCAN_LIMIT = 1000;
+
 /**
  * The paths a definition touches.
  *
@@ -35,9 +38,16 @@ export function collectSourcePaths(
   for (const op of definition.operations) {
     switch (op.kind) {
       case "add":
-      case "delete":
+      case "addContent":
       case "replace":
         paths.push({ kind: "literal", path: normalizeGitPath(op.path) });
+        break;
+      case "delete":
+        paths.push(
+          op.recursive
+            ? { kind: "tree", path: normalizeGitPath(op.path), maxEntries: DEFAULT_TREE_SCAN_LIMIT }
+            : { kind: "literal", path: normalizeGitPath(op.path) },
+        );
         break;
       case "rename":
         paths.push({ kind: "literal", path: normalizeGitPath(op.from) });
@@ -54,7 +64,7 @@ export function collectSourcePaths(
   const expanded: SourcePath[] = [];
   for (const path of unique.values()) {
     const segments = path.path.slice(1).split("/");
-    if (segments.length > 1) {
+    if (segments.length > 1 && path.kind === "literal") {
       expanded.push({ kind: "directory", path: `/${segments[0]}`, maxEntries: maxEntries });
     }
     expanded.push(path);
@@ -110,6 +120,17 @@ function resolveBaseFiles(snapshot: RepoSnapshot, sourcePaths: SourcePath[]): Ba
       const entry = byPath.get(source.path);
       if (entry) {
         resolved.set(source.path, entry);
+      }
+      continue;
+    }
+
+    if (source.kind === "tree") {
+      const root = source.path;
+      const treePrefix = root === "/" ? "/" : `${root}/`;
+      for (const entry of byPath.values()) {
+        if (entry.path === root || entry.path.startsWith(treePrefix)) {
+          resolved.set(entry.path, entry);
+        }
       }
       continue;
     }

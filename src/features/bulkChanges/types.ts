@@ -6,10 +6,16 @@
  */
 
 /** Discriminator for the supported bulk operations. */
-export type OperationKind = "add" | "delete" | "rename" | "replace";
+export type OperationKind = "add" | "addContent" | "delete" | "rename" | "replace";
+
+/** What to do when an operation's target file does not exist, or a `replace` finds no match. */
+export type MissingFileBehavior = "error" | "skip" | "createIfMissing";
 
 /** What to do when a `replace` operation finds no match in a file. */
-export type NoMatchBehavior = "error" | "skip" | "create-if-missing";
+export type NoMatchBehavior = MissingFileBehavior;
+
+/** Where an `addContent` operation inserts its text. */
+export type ContentPosition = "start" | "end" | "lineNumber";
 
 /** What to do when a `delete` or `rename` source path does not exist. */
 export type MissingSourceBehavior = "error" | "skip";
@@ -23,9 +29,24 @@ export interface AddOperation {
   onlyIfMissing: boolean;
 }
 
+export interface AddContentOperation {
+  kind: "addContent";
+  path: string;
+  /** Inserted as whole lines. */
+  content: string;
+  position: ContentPosition;
+  /** 1-based; the content is inserted before this line. Only used when `position` is `lineNumber`. */
+  lineNumber: number | null;
+  /** When true the operation is a no-op if the file already contains the content. */
+  skipIfPresent: boolean;
+  onMissing: MissingFileBehavior;
+}
+
 export interface DeleteOperation {
   kind: "delete";
   path: string;
+  /** When true `path` may be a directory, and everything below it is deleted. */
+  recursive: boolean;
   onMissing: MissingSourceBehavior;
 }
 
@@ -51,7 +72,7 @@ export interface ReplaceOperation {
   onNoMatch: NoMatchBehavior;
 }
 
-export type BulkOperation = AddOperation | DeleteOperation | RenameOperation | ReplaceOperation;
+export type BulkOperation = AddOperation | AddContentOperation | DeleteOperation | RenameOperation | ReplaceOperation;
 
 /** How a repository is written to. */
 export type WriteMode = "directCommit" | "pullRequest";
@@ -202,7 +223,11 @@ export const DEFAULT_LIMITS: EngineLimits = {
  * A path the definition touches. Literal paths are read directly; directories are expanded to their
  * immediate children so operations can target well-known files without knowing which exist.
  */
-export type SourcePath = { kind: "literal"; path: string } | { kind: "directory"; path: string; maxEntries?: number };
+export type SourcePath =
+  | { kind: "literal"; path: string }
+  | { kind: "directory"; path: string; maxEntries?: number }
+  /** Every file below `path`, at any depth. Listing more than `maxEntries` files is an error, never a truncation. */
+  | { kind: "tree"; path: string; maxEntries?: number };
 
 /** A snapshot of the files a definition touches, at a specific commit. */
 export interface RepoSnapshot {

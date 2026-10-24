@@ -77,6 +77,19 @@ export class VirtualWorkspace {
     return existing;
   }
 
+  /** Remove `path` and every file below it. Returns the removed paths, sorted. */
+  public removeTree(path: string): string[] {
+    const normalized = normalizeGitPath(path);
+    const prefix = normalized === "/" ? "/" : `${normalized}/`;
+    const removed = [...this.files.keys()].filter(
+      (candidate) => candidate === normalized || candidate.startsWith(prefix),
+    );
+    for (const candidate of removed) {
+      this.files.delete(candidate);
+    }
+    return removed.sort();
+  }
+
   /**
    * Move `from` to `to`, preserving content. Returns `false` when the source does not exist or the
    * target is already occupied.

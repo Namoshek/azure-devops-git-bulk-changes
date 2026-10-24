@@ -1,16 +1,16 @@
 name: Add LICENSE where missing
 description: Adds a MIT LICENSE file to every selected repository that does not have one yet.
-write_mode: pull_request
-branch_name: add-license
-commit_message: "Add MIT LICENSE file"
-pull_request:
+writeMode: pullRequest # directCommit | pullRequest
+branchName: add-license
+commitMessage: "Add MIT LICENSE file"
+pullRequest:
   title: "Add MIT LICENSE file"
   description: "Added by the Git Bulk Changes extension."
   draft: false
 operations:
   - add:
       path: /LICENSE
-      only_if_missing: true
+      onlyIfMissing: true
       content: |
         MIT License
 

@@ -15,7 +15,7 @@ describe("appendOperation", () => {
   });
 
   it("creates the operations key when missing", () => {
-    const next = appendOperation("name: Test\nwrite_mode: direct_commit\n", "rename");
+    const next = appendOperation("name: Test\nwriteMode: directCommit\n", "rename");
     expect(next).not.toBeNull();
     const doc = parseDocument(next as string);
     const seq = doc.get("operations");
@@ -39,6 +39,35 @@ describe("appendOperation", () => {
 
   it("returns null for unparseable YAML", () => {
     expect(appendOperation("name: [unclosed", "add")).toBeNull();
+  });
+
+  it.each(["add", "addContent", "delete", "rename", "replace"] as const)(
+    "appends a %s operation that validates",
+    (kind) => {
+      const next = appendOperation(BLANK_DEFINITION, kind);
+      expect(next).not.toBeNull();
+      const result = parseDefinition(next as string);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.definition.operations[0].kind).toBe(kind);
+      }
+    },
+  );
+
+  it("lists the allowed values of enum fields in a comment on the same line", () => {
+    const addContent = appendOperation(BLANK_DEFINITION, "addContent") as string;
+    expect(addContent).toMatch(/^\s+position: end # start \| end \| lineNumber$/m);
+    expect(addContent).toMatch(/^\s+onMissing: skip # error \| skip \| createIfMissing$/m);
+
+    expect(appendOperation(BLANK_DEFINITION, "delete") as string).toMatch(/^\s+onMissing: skip # error \| skip$/m);
+    expect(appendOperation(BLANK_DEFINITION, "rename") as string).toMatch(/^\s+onMissing: skip # error \| skip$/m);
+    expect(appendOperation(BLANK_DEFINITION, "replace") as string).toMatch(
+      /^\s+onNoMatch: skip # error \| skip \| createIfMissing$/m,
+    );
+  });
+
+  it("documents the write mode in the blank definition", () => {
+    expect(BLANK_DEFINITION).toContain("writeMode: pullRequest # directCommit | pullRequest");
   });
 });
 

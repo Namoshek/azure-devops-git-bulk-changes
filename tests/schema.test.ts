@@ -27,13 +27,13 @@ operations:
     expect(definition.pullRequestDraft).toBe(false);
   });
 
-  it("maps pull_request write mode and pull request settings", () => {
+  it("maps pullRequest write mode and pull request settings", () => {
     const definition = valid(`
 name: PR mode
-write_mode: pull_request
-branch_name: bulk/add-license
-commit_message: "Add LICENSE"
-pull_request:
+writeMode: pullRequest
+branchName: bulk/add-license
+commitMessage: "Add LICENSE"
+pullRequest:
   title: "Add LICENSE"
   description: "body"
   draft: true
@@ -49,13 +49,13 @@ operations:
     expect(definition.pullRequestDraft).toBe(true);
   });
 
-  it("normalizes snake_case operation fields to the domain model", () => {
+  it("normalizes operation fields to the domain model", () => {
     const definition = valid(`
 name: Mixed operations
 operations:
   - delete:
       path: /old.txt
-      on_missing: skip
+      onMissing: skip
   - rename:
       from: /a/settings.json
       to: /a/config.json
@@ -63,12 +63,17 @@ operations:
       path: /azure-pipelines.yml
       find: "pool: Azure"
       replace: "pool: Self"
-      use_regex: true
+      useRegex: true
       flags: m
-      on_no_match: create-if-missing
+      onNoMatch: createIfMissing
 `);
 
-    expect(definition.operations[0]).toEqual({ kind: "delete", path: "/old.txt", onMissing: "skip" });
+    expect(definition.operations[0]).toEqual({
+      kind: "delete",
+      path: "/old.txt",
+      recursive: false,
+      onMissing: "skip",
+    });
     expect(definition.operations[1]).toEqual({
       kind: "rename",
       from: "/a/settings.json",
@@ -82,7 +87,84 @@ operations:
       replace: "pool: Self",
       useRegex: true,
       flags: "m",
-      onNoMatch: "create-if-missing",
+      onNoMatch: "createIfMissing",
+    });
+  });
+
+  it("rejects snake_case keys", () => {
+    const result = parseDefinition(`
+name: Old style
+write_mode: pull_request
+operations:
+  - add:
+      path: /a
+      content: "x"
+`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.join(" ")).toContain("write_mode");
+    }
+  });
+
+  it("maps addContent with its defaults", () => {
+    const definition = valid(`
+name: Credits
+operations:
+  - addContent:
+      path: /README.md
+      content: "credits"
+`);
+    expect(definition.operations[0]).toEqual({
+      kind: "addContent",
+      path: "/README.md",
+      content: "credits",
+      position: "end",
+      lineNumber: null,
+      skipIfPresent: true,
+      onMissing: "error",
+    });
+  });
+
+  it("requires lineNumber when addContent position is lineNumber", () => {
+    const result = parseDefinition(`
+name: Credits
+operations:
+  - addContent:
+      path: /README.md
+      content: "credits"
+      position: lineNumber
+`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.join(" ")).toContain("lineNumber is required");
+    }
+  });
+
+  it("rejects an unknown addContent position", () => {
+    const result = parseDefinition(`
+name: Credits
+operations:
+  - addContent:
+      path: /README.md
+      content: "credits"
+      position: middle
+`);
+    expect(result.ok).toBe(false);
+  });
+
+  it("maps a recursive delete", () => {
+    const definition = valid(`
+name: Delete dir
+operations:
+  - delete:
+      path: /.vs
+      recursive: true
+`);
+    expect(definition.operations[0]).toEqual({
+      kind: "delete",
+      path: "/.vs",
+      recursive: true,
+      onMissing: "error",
     });
   });
 
@@ -177,7 +259,7 @@ operations:
   it("rejects `branch` in pull-request mode", () => {
     const result = parseDefinition(`
 name: Branch in PR
-write_mode: pull_request
+writeMode: pullRequest
 branch: feature/x
 operations:
   - add:
@@ -186,11 +268,11 @@ operations:
 `);
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.issues.join(" ")).toContain("direct_commit");
+      expect(result.issues.join(" ")).toContain("directCommit");
     }
   });
 
-  it("rejects an invalid regex when use_regex is true", () => {
+  it("rejects an invalid regex when useRegex is true", () => {
     const result = parseDefinition(`
 name: Bad regex
 operations:
@@ -198,7 +280,7 @@ operations:
       path: /a.txt
       find: "(unclosed"
       replace: "y"
-      use_regex: true
+      useRegex: true
 `);
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -214,7 +296,7 @@ operations:
       path: /a.txt
       find: "x"
       replace: "y"
-      use_regex: true
+      useRegex: true
       flags: z
 `);
     expect(result.ok).toBe(false);

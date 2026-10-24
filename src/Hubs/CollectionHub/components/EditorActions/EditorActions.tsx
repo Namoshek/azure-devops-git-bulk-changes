@@ -8,7 +8,8 @@ import "./EditorActions.css";
 
 const OPERATIONS: { kind: OperationKind; label: string }[] = [
   { kind: "add", label: "Add file" },
-  { kind: "delete", label: "Delete file" },
+  { kind: "addContent", label: "Add content" },
+  { kind: "delete", label: "Delete" },
   { kind: "rename", label: "Rename / move" },
   { kind: "replace", label: "Replace content" },
 ];
@@ -36,7 +37,7 @@ export function EditorActions({ disabled, onAddOperation, onLoadExample }: Edito
             iconProps={{ iconName: "Add" }}
             onClick={() => onAddOperation(operation.kind)}
             disabled={disabled}
-            ariaLabel={`Add a ${operation.label.toLowerCase()} operation`}
+            ariaLabel={`Add operation: ${operation.label}`}
           />
         ))}
       </ButtonGroupBase>

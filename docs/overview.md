@@ -7,27 +7,28 @@ Git Bulk Changes adds a page to the collection settings hub that lets you apply 
 ## How it works
 
 1. **Pick the scope.** Select the repositories to change from a single filterable list that spans every project you can access (each entry is labelled with its project). The list only contains repositories the signed-in user can read, so filtering matches across all of them at once.
-2. **Describe the change once.** A definition is a small YAML document: an ordered list of operations plus how the result should be written (`write_mode`, `branch_name`, `commit_message`, `pull_request`). It is edited in the same Monaco-based editor Azure Repos uses for file editing (following the host light/dark theme), and validated before anything runs. The **Examples** button opens a menu whose items replace the editor content with a ready-to-edit sample (add LICENSE where missing, rename a config file, update an agent pool); it is a one-shot action rather than a selected state, and you can append any additional operation of any kind to build a multi-step definition — the examples are starting points, not the only supported scenarios.
+2. **Describe the change once.** A definition is a small YAML document: an ordered list of operations plus how the result should be written (`writeMode`, `branchName`, `commitMessage`, `pullRequest`). It is edited in the same Monaco-based editor Azure Repos uses for file editing (following the host light/dark theme), and validated before anything runs. The **Examples** button opens a menu whose items replace the editor content with a ready-to-edit sample (add LICENSE where missing, rename a config file, update an agent pool, delete the .vs directory, add credits to the README); it is a one-shot action rather than a selected state, and you can append any additional operation of any kind to build a multi-step definition — the examples are starting points, not the only supported scenarios.
 3. **Preview.** The preview is a read-only dry run. Each repository is read, the operations are applied in memory, and you get a per-repository status — _Would change_, _No change_, _Skipped_ or _Error_ — with the exact unified diff and a specific reason for anything skipped or failed. Diffs are computed locally and never sent to Azure DevOps.
 4. **Apply.** Only after reviewing the preview can you write. Applying re-reads the branch tip, so a stale preview can never overwrite newer commits, and repositories are processed independently: one failure never stops the rest.
 
 ## Operations
 
-| Operation | Behaviour                                               |
-| --------- | ------------------------------------------------------- |
-| `add`     | Create a file; optionally only when it is missing.      |
-| `delete`  | Remove a file; optionally ignore it when it is missing. |
-| `rename`  | Rename or move a file (content is carried over).        |
-| `replace` | Change file content with a literal string or a regex.   |
+| Operation    | Behaviour                                                                            |
+| ------------ | ------------------------------------------------------------------------------------ |
+| `add`        | Create a file; optionally only when it is missing.                                   |
+| `addContent` | Insert text at the `start`, the `end` or a `lineNumber` of an existing file.         |
+| `delete`     | Remove a file, or a whole directory with `recursive: true`; can ignore missing ones. |
+| `rename`     | Rename or move a file (content is carried over).                                     |
+| `replace`    | Change file content with a literal string or a regex.                                |
 
 Paths are exact and case-sensitive, so a definition always says precisely which files it touches; listing a directory expands to the files inside it. A file that cannot be read as text (binary, too large) is skipped with a reason instead of being mangled.
 
 ## Write modes
 
-The write mode is part of the YAML definition (`write_mode`), not a separate form:
+The write mode is part of the YAML definition (`writeMode`), not a separate form:
 
-- **Pull requests** (`write_mode: pull_request`, default): a commit on a new source branch plus an open pull request per repository. Nothing is merged automatically.
-- **Direct commit** (`write_mode: direct_commit`): commit straight onto the current branch tip. Requires Contribute permission on the branch, and the changes cannot be undone from this page.
+- **Pull requests** (`writeMode: pullRequest`): a commit on a new source branch plus an open pull request per repository. Nothing is merged automatically.
+- **Direct commit** (`writeMode: directCommit`, the default): commit straight onto the current branch tip. Requires Contribute permission on the branch, and the changes cannot be undone from this page. Requires Contribute permission on the branch, and the changes cannot be undone from this page.
 
 ## Permissions
 

@@ -1,18 +1,20 @@
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 import {
+  AddContentOperation,
+  AddOperation,
   BulkChangeDefinition,
   BulkOperation,
+  ContentPosition,
   DeleteOperation,
-  NoMatchBehavior,
+  MissingFileBehavior,
   MissingSourceBehavior,
+  NoMatchBehavior,
   RenameOperation,
   ReplaceOperation,
-  AddOperation,
 } from "./types";
 import { tryNormalizeGitPath } from "./pathUtils";
 
-/** YAML keys use snake_case; the normalized domain model uses camelCase. */
 const VALID_FLAGS = /^[igmusvy]*$/;
 
 const pathField = z
@@ -26,14 +28,26 @@ const addSchema = z.strictObject({
   add: z.strictObject({
     path: pathField,
     content: z.string(),
-    only_if_missing: z.boolean().default(false),
+    onlyIfMissing: z.boolean().default(false),
+  }),
+});
+
+const addContentSchema = z.strictObject({
+  addContent: z.strictObject({
+    path: pathField,
+    content: z.string(),
+    position: z.enum(["start", "end", "lineNumber"]).default("end"),
+    lineNumber: z.number().int().min(1, "must be 1 or greater").nullable().default(null),
+    skipIfPresent: z.boolean().default(true),
+    onMissing: z.enum(["error", "skip", "createIfMissing"]).default("error"),
   }),
 });
 
 const deleteSchema = z.strictObject({
   delete: z.strictObject({
     path: pathField,
-    on_missing: z.enum(["error", "skip"]).default("error"),
+    recursive: z.boolean().default(false),
+    onMissing: z.enum(["error", "skip"]).default("error"),
   }),
 });
 
@@ -41,7 +55,7 @@ const renameSchema = z.strictObject({
   rename: z.strictObject({
     from: pathField,
     to: pathField,
-    on_missing: z.enum(["error", "skip"]).default("error"),
+    onMissing: z.enum(["error", "skip"]).default("error"),
   }),
 });
 
@@ -50,23 +64,23 @@ const replaceSchema = z.strictObject({
     path: pathField,
     find: z.string().min(1, "must not be empty"),
     replace: z.string(),
-    use_regex: z.boolean().default(false),
+    useRegex: z.boolean().default(false),
     flags: flagsField.default("m"),
-    on_no_match: z.enum(["error", "skip", "create-if-missing"]).default("error"),
+    onNoMatch: z.enum(["error", "skip", "createIfMissing"]).default("error"),
   }),
 });
 
-const operationSchema = z.union([addSchema, deleteSchema, renameSchema, replaceSchema]);
+const operationSchema = z.union([addSchema, addContentSchema, deleteSchema, renameSchema, replaceSchema]);
 
 export const definitionSchema = z.strictObject({
   name: z.string().min(1, "must not be empty").max(120, "must be at most 120 characters"),
   description: z.string().default(""),
-  write_mode: z.enum(["direct_commit", "pull_request"]).default("direct_commit"),
-  /** Branch to commit to in `direct_commit` mode. Defaults to each repository's default branch. */
+  writeMode: z.enum(["directCommit", "pullRequest"]).default("directCommit"),
+  /** Branch to commit to in `directCommit` mode. Defaults to each repository's default branch. */
   branch: z.string().min(1).nullable().default(null),
-  branch_name: z.string().min(1, "must not be empty").default("bulk-changes"),
-  commit_message: z.string().min(1, "must not be empty").default("Apply bulk changes"),
-  pull_request: z
+  branchName: z.string().min(1, "must not be empty").default("bulk-changes"),
+  commitMessage: z.string().min(1, "must not be empty").default("Apply bulk changes"),
+  pullRequest: z
     .strictObject({
       title: z.string().min(1, "must not be empty").default("Apply bulk changes"),
       description: z.string().default(""),
@@ -112,7 +126,20 @@ function normalizeOperation(raw: RawOperationLike): BulkOperation {
       kind: "add",
       path: tryNormalizeGitPath(op.path) as string,
       content: op.content,
-      onlyIfMissing: op.only_if_missing,
+      onlyIfMissing: op.onlyIfMissing,
+    };
+    return operation;
+  }
+  if ("addContent" in raw) {
+    const op = raw.addContent;
+    const operation: AddContentOperation = {
+      kind: "addContent",
+      path: tryNormalizeGitPath(op.path) as string,
+      content: op.content,
+      position: op.position as ContentPosition,
+      lineNumber: op.lineNumber,
+      skipIfPresent: op.skipIfPresent,
+      onMissing: op.onMissing as MissingFileBehavior,
     };
     return operation;
   }
@@ -121,7 +148,8 @@ function normalizeOperation(raw: RawOperationLike): BulkOperation {
     const operation: DeleteOperation = {
       kind: "delete",
       path: tryNormalizeGitPath(op.path) as string,
-      onMissing: op.on_missing as MissingSourceBehavior,
+      recursive: op.recursive,
+      onMissing: op.onMissing as MissingSourceBehavior,
     };
     return operation;
   }
@@ -131,7 +159,7 @@ function normalizeOperation(raw: RawOperationLike): BulkOperation {
       kind: "rename",
       from: tryNormalizeGitPath(op.from) as string,
       to: tryNormalizeGitPath(op.to) as string,
-      onMissing: op.on_missing as MissingSourceBehavior,
+      onMissing: op.onMissing as MissingSourceBehavior,
     };
     return operation;
   }
@@ -141,9 +169,9 @@ function normalizeOperation(raw: RawOperationLike): BulkOperation {
     path: tryNormalizeGitPath(op.path) as string,
     find: op.find,
     replace: op.replace,
-    useRegex: op.use_regex,
+    useRegex: op.useRegex,
     flags: op.flags,
-    onNoMatch: op.on_no_match as NoMatchBehavior,
+    onNoMatch: op.onNoMatch as NoMatchBehavior,
   };
   return operation;
 }
@@ -153,18 +181,25 @@ type RawOperationLike = z.infer<typeof operationSchema>;
 function extraSemanticIssues(raw: RawDefinition): string[] {
   const issues: string[] = [];
 
-  if (raw.write_mode === "pull_request" && raw.branch !== null) {
+  if (raw.writeMode === "pullRequest" && raw.branch !== null) {
     issues.push(
-      "`branch` can only be set together with `write_mode: direct_commit`; pull requests always target the default branch.",
+      "`branch` can only be set together with `writeMode: directCommit`; pull requests always target the default branch.",
     );
   }
 
   raw.operations.forEach((operation, index) => {
+    if ("addContent" in operation) {
+      const op = operation.addContent;
+      if (op.position === "lineNumber" && op.lineNumber === null) {
+        issues.push(`operations[${index}].addContent.lineNumber is required when position is lineNumber.`);
+      }
+      return;
+    }
     if (!("replace" in operation)) {
       return;
     }
     const op = operation.replace;
-    if (!op.use_regex) {
+    if (!op.useRegex) {
       return;
     }
     try {
@@ -215,13 +250,13 @@ export function parseDefinition(yamlText: string): ParseResult {
   const raw = result.data;
   const definition: BulkChangeDefinition = {
     operations: raw.operations.map((operation) => normalizeOperation(operation)),
-    writeMode: raw.write_mode === "pull_request" ? "pullRequest" : "directCommit",
+    writeMode: raw.writeMode,
     branch: raw.branch,
-    branchName: raw.branch_name,
-    commitMessage: raw.commit_message,
-    pullRequestTitle: raw.pull_request.title,
-    pullRequestDescription: raw.pull_request.description,
-    pullRequestDraft: raw.pull_request.draft,
+    branchName: raw.branchName,
+    commitMessage: raw.commitMessage,
+    pullRequestTitle: raw.pullRequest.title,
+    pullRequestDescription: raw.pullRequest.description,
+    pullRequestDraft: raw.pullRequest.draft,
   };
 
   return { ok: true, definition, raw };

@@ -94,28 +94,28 @@ function createStub(options: StubOptions = {}) {
 
 const ADD_LICENSE = `
 name: Add LICENSE
-write_mode: direct_commit
-commit_message: "Add LICENSE"
+writeMode: directCommit
+commitMessage: "Add LICENSE"
 operations:
   - add:
       path: /LICENSE
-      only_if_missing: true
+      onlyIfMissing: true
       content: "MIT"
 `;
 
 const PR_MODE = `
 name: Add LICENSE via PR
-write_mode: pull_request
-branch_name: add-license
-commit_message: "Add LICENSE"
-pull_request:
+writeMode: pullRequest
+branchName: add-license
+commitMessage: "Add LICENSE"
+pullRequest:
   title: "Add LICENSE"
   description: "body"
   draft: true
 operations:
   - add:
       path: /LICENSE
-      only_if_missing: true
+      onlyIfMissing: true
       content: "MIT"
 `;
 
@@ -132,7 +132,7 @@ describe("branchFor", () => {
   it("uses the explicit branch in direct mode", () => {
     const definition = definitionOf(`
 name: Direct on branch
-write_mode: direct_commit
+writeMode: directCommit
 branch: release/1.0
 operations:
   - add:
@@ -194,7 +194,7 @@ operations:
       path: /image.png
       find: "x"
       replace: "y"
-      on_no_match: skip
+      onNoMatch: skip
 `);
     const plans = await previewRepos(access, definition, [repo("A", "a")]);
     expect(plans[0].status).toBe("no-change");

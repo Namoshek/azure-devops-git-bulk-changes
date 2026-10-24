@@ -1,6 +1,7 @@
 import {
   BaseFile,
   BulkChangeDefinition,
+  BulkOperation,
   DEFAULT_LIMITS,
   RepoSnapshot,
   RepoTarget,
@@ -124,7 +125,7 @@ describe("VirtualWorkspace", () => {
 describe("applyOperation", () => {
   const context = { limits: DEFAULT_LIMITS };
 
-  it("add creates a missing file and no-ops when only_if_missing is set", () => {
+  it("add creates a missing file and no-ops when onlyIfMissing is set", () => {
     const ws = VirtualWorkspace.fromBaseFiles([file("/LICENSE", "existing")]);
     const add = { kind: "add" as const, path: "/LICENSE", content: "new", onlyIfMissing: true };
     expect(applyOperation(ws, add, 0, context).severity).toBe("noop");
@@ -135,7 +136,7 @@ describe("applyOperation", () => {
     expect(ws.get("/README.md")?.content).toBe("hello");
   });
 
-  it("add overwrites when only_if_missing is false", () => {
+  it("add overwrites when onlyIfMissing is false", () => {
     const ws = VirtualWorkspace.fromBaseFiles([file("/a.txt", "old")]);
     const result = applyOperation(
       ws,
@@ -159,18 +160,126 @@ describe("applyOperation", () => {
     expect(result.message).toContain("binary");
   });
 
-  it("delete honours on_missing", () => {
+  it("delete honours onMissing", () => {
     const ws = VirtualWorkspace.fromBaseFiles([file("/a.txt", "x")]);
-    expect(applyOperation(ws, { kind: "delete", path: "/missing.txt", onMissing: "skip" }, 0, context).severity).toBe(
-      "noop",
-    );
-    expect(applyOperation(ws, { kind: "delete", path: "/missing.txt", onMissing: "error" }, 1, context).severity).toBe(
-      "error",
-    );
-    expect(applyOperation(ws, { kind: "delete", path: "/a.txt", onMissing: "error" }, 2, context).severity).toBe(
-      "applied",
-    );
+    const remove = (path: string, onMissing: "error" | "skip", index: number) =>
+      applyOperation(ws, { kind: "delete", path, recursive: false, onMissing }, index, context).severity;
+    expect(remove("/missing.txt", "skip", 0)).toBe("noop");
+    expect(remove("/missing.txt", "error", 1)).toBe("error");
+    expect(remove("/a.txt", "error", 2)).toBe("applied");
     expect(ws.has("/a.txt")).toBe(false);
+  });
+
+  it("recursive delete removes a directory and everything below it", () => {
+    const ws = VirtualWorkspace.fromBaseFiles([
+      file("/.vs/a.suo", "1"),
+      file("/.vs/config/applicationhost.config", "2"),
+      file("/.vsx/keep.txt", "3"),
+      file("/README.md", "4"),
+    ]);
+    const result = applyOperation(
+      ws,
+      { kind: "delete", path: "/.vs", recursive: true, onMissing: "error" },
+      0,
+      context,
+    );
+    expect(result.severity).toBe("applied");
+    expect(result.message).toContain("2 file(s)");
+    expect(ws.paths()).toEqual(["/.vsx/keep.txt", "/README.md"]);
+  });
+
+  it("recursive delete honours onMissing for a missing directory", () => {
+    const ws = VirtualWorkspace.fromBaseFiles([file("/README.md", "x")]);
+    const remove = (onMissing: "error" | "skip") =>
+      applyOperation(ws, { kind: "delete", path: "/.vs", recursive: true, onMissing }, 0, context).severity;
+    expect(remove("skip")).toBe("noop");
+    expect(remove("error")).toBe("error");
+  });
+
+  describe("addContent", () => {
+    const addContent = (files: BaseFile[], overrides: Partial<Extract<BulkOperation, { kind: "addContent" }>> = {}) => {
+      const ws = VirtualWorkspace.fromBaseFiles(files);
+      const result = applyOperation(
+        ws,
+        {
+          kind: "addContent",
+          path: "/README.md",
+          content: "credits",
+          position: "end",
+          lineNumber: null,
+          skipIfPresent: true,
+          onMissing: "error",
+          ...overrides,
+        },
+        0,
+        context,
+      );
+      return { ws, result };
+    };
+
+    it("appends at the end, adding the missing line break first", () => {
+      const { ws, result } = addContent([file("/README.md", "# Title")]);
+      expect(result.severity).toBe("applied");
+      expect(ws.get("/README.md")?.content).toBe("# Title\ncredits\n");
+    });
+
+    it("appends after a trailing line break without a blank line", () => {
+      const { ws } = addContent([file("/README.md", "# Title\n")]);
+      expect(ws.get("/README.md")?.content).toBe("# Title\ncredits\n");
+    });
+
+    it("prepends at the start", () => {
+      const { ws } = addContent([file("/README.md", "# Title\n")], { position: "start" });
+      expect(ws.get("/README.md")?.content).toBe("credits\n# Title\n");
+    });
+
+    it("inserts before the given line number", () => {
+      const { ws } = addContent([file("/README.md", "one\ntwo\nthree\n")], { position: "lineNumber", lineNumber: 2 });
+      expect(ws.get("/README.md")?.content).toBe("one\ncredits\ntwo\nthree\n");
+    });
+
+    it("treats the line after the last one as the end, even without a trailing line break", () => {
+      const { ws } = addContent([file("/README.md", "one\ntwo")], { position: "lineNumber", lineNumber: 3 });
+      expect(ws.get("/README.md")?.content).toBe("one\ntwo\ncredits\n");
+    });
+
+    it("errors when the line number is beyond the end of the file", () => {
+      const { result } = addContent([file("/README.md", "one\ntwo\n")], { position: "lineNumber", lineNumber: 9 });
+      expect(result.severity).toBe("error");
+      expect(result.message).toContain("2 line(s)");
+    });
+
+    it("keeps the file's CRLF line endings", () => {
+      const { ws } = addContent([file("/README.md", "one\r\ntwo\r\n")], { content: "a\nb" });
+      expect(ws.get("/README.md")?.content).toBe("one\r\ntwo\r\na\r\nb\r\n");
+    });
+
+    it("is a no-op when the file already contains the content", () => {
+      const { ws, result } = addContent([file("/README.md", "# Title\n\ncredits\n")], { content: "\ncredits\n" });
+      expect(result.severity).toBe("noop");
+      expect(ws.get("/README.md")?.content).toBe("# Title\n\ncredits\n");
+    });
+
+    it("adds the content again when skipIfPresent is false", () => {
+      const { ws, result } = addContent([file("/README.md", "credits\n")], { skipIfPresent: false });
+      expect(result.severity).toBe("applied");
+      expect(ws.get("/README.md")?.content).toBe("credits\ncredits\n");
+    });
+
+    it("honours onMissing for a missing file", () => {
+      expect(addContent([], { onMissing: "error" }).result.severity).toBe("error");
+      expect(addContent([], { onMissing: "skip" }).result.severity).toBe("noop");
+
+      const created = addContent([], { onMissing: "createIfMissing" });
+      expect(created.result.severity).toBe("applied");
+      expect(created.ws.get("/README.md")?.content).toBe("credits\n");
+    });
+
+    it("errors on a file whose content cannot be read", () => {
+      const { result } = addContent([binaryFile("/README.md")]);
+      expect(result.severity).toBe("error");
+      expect(result.message).toContain("binary");
+    });
   });
 
   it("rename errors on a missing source, an occupied target and an identical path", () => {
@@ -213,7 +322,7 @@ describe("applyOperation", () => {
     expect(result.message).toContain("2 replacement");
   });
 
-  it("replace treats regex metacharacters literally when use_regex is false", () => {
+  it("replace treats regex metacharacters literally when useRegex is false", () => {
     const ws = VirtualWorkspace.fromBaseFiles([file("/a.txt", "a.b + c")]);
     applyOperation(
       ws,
@@ -243,9 +352,9 @@ describe("applyOperation", () => {
     expect(ws.get("/a.txt")?.content).toBe("POOL=a\npool[b]\n");
   });
 
-  it("replace honours on_no_match", () => {
+  it("replace honours onNoMatch", () => {
     const ws = VirtualWorkspace.fromBaseFiles([file("/a.txt", "content")]);
-    const op = (onNoMatch: "error" | "skip" | "create-if-missing") =>
+    const op = (onNoMatch: "error" | "skip" | "createIfMissing") =>
       applyOperation(
         ws,
         { kind: "replace", path: "/a.txt", find: "absent", replace: "x", useRegex: false, flags: "m", onNoMatch },
@@ -254,11 +363,11 @@ describe("applyOperation", () => {
       );
     expect(op("skip").severity).toBe("noop");
     expect(op("error").severity).toBe("error");
-    expect(op("create-if-missing").severity).toBe("warning");
+    expect(op("createIfMissing").severity).toBe("warning");
     expect(ws.get("/a.txt")?.content).toBe("content");
   });
 
-  it("replace creates the file when it is missing and on_no_match is create-if-missing", () => {
+  it("replace creates the file when it is missing and onNoMatch is createIfMissing", () => {
     const ws = VirtualWorkspace.fromBaseFiles([]);
     const result = applyOperation(
       ws,
@@ -269,7 +378,7 @@ describe("applyOperation", () => {
         replace: "created",
         useRegex: false,
         flags: "m",
-        onNoMatch: "create-if-missing",
+        onNoMatch: "createIfMissing",
       },
       0,
       context,
@@ -319,7 +428,7 @@ describe("applyOperation", () => {
     expect(result.message).toContain("character limit");
   });
 
-  it("replace skips unreadable files when on_no_match is skip", () => {
+  it("replace skips unreadable files when onNoMatch is skip", () => {
     const ws = VirtualWorkspace.fromBaseFiles([binaryFile("/image.png")]);
     const result = applyOperation(
       ws,
@@ -330,7 +439,7 @@ describe("applyOperation", () => {
     expect(result.severity).toBe("noop");
   });
 
-  it("throws on an invalid regex instead of reporting a result, unless on_no_match is skip", () => {
+  it("throws on an invalid regex instead of reporting a result, unless onNoMatch is skip", () => {
     const ws = VirtualWorkspace.fromBaseFiles([file("/a.txt", "x")]);
     const bad = {
       kind: "replace" as const,
@@ -373,7 +482,7 @@ operations:
 operations:
   - add:
       path: /LICENSE
-      only_if_missing: true
+      onlyIfMissing: true
       content: "MIT"
 `,
       [file("/LICENSE", "MIT")],
@@ -420,6 +529,36 @@ operations:
     expect(sourcePaths).toEqual([
       { kind: "directory", path: "/src", maxEntries: 50 },
       { kind: "literal", path: "/src/main.ts" },
+    ]);
+  });
+
+  it("reads a recursive delete as a whole tree and deletes every listed file", () => {
+    const listed = (path: string): BaseFile => ({
+      path,
+      content: null,
+      objectId: `sha-${path}`,
+      isBinary: false,
+      skipReason: "its content was not loaded",
+    });
+    const { sourcePaths, plan } = planOf(
+      `name: Delete dir
+operations:
+  - delete:
+      path: /.vs
+      recursive: true
+`,
+      [listed("/.vs/a.suo"), listed("/.vs/config/applicationhost.config"), file("/README.md", "x")],
+    );
+
+    expect(sourcePaths).toEqual([{ kind: "tree", path: "/.vs", maxEntries: 1000 }]);
+    expect(plan.status).toBe("would-change");
+    expect(plan.desired).toEqual([
+      { kind: "delete", path: "/.vs/a.suo", baseObjectId: "sha-/.vs/a.suo" },
+      {
+        kind: "delete",
+        path: "/.vs/config/applicationhost.config",
+        baseObjectId: "sha-/.vs/config/applicationhost.config",
+      },
     ]);
   });
 
@@ -480,11 +619,11 @@ operations:
 operations:
   - delete:
       path: /nope.txt
-      on_missing: skip
+      onMissing: skip
   - rename:
       from: /nope.json
       to: /other.json
-      on_missing: skip
+      onMissing: skip
 `,
       [],
     );

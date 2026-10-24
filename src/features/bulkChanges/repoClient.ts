@@ -5,7 +5,7 @@ import * as Git from "azure-devops-extension-api/Git/Git";
 import * as Core from "azure-devops-extension-api/Core/Core";
 import { BaseFile, BulkChangeError, RepoTarget } from "./types";
 import { PullRequestRequest, PullRequestResult, PushRequest, PushResult, RepoAccess } from "./repoAccess";
-import { DEFAULT_DIRECTORY_SCAN_LIMIT } from "./planEngine";
+import { DEFAULT_DIRECTORY_SCAN_LIMIT, DEFAULT_TREE_SCAN_LIMIT } from "./planEngine";
 import { mapWithConcurrency } from "./concurrency";
 
 /** Repository file reads are fanned out with this many requests per repository. */
@@ -174,6 +174,58 @@ async function readDirectoryEntries(
 }
 
 /**
+ * Every file below `path` (at any depth), listed without content.
+ *
+ * A listing larger than `limit` is rejected: a recursive delete must never act on a partial listing.
+ */
+async function readTreeFiles(
+  client: GitRestClient,
+  target: RepoTarget,
+  commit: string,
+  path: string,
+  limit: number,
+): Promise<BaseFile[]> {
+  try {
+    const items = await client.getItems(
+      target.repositoryId,
+      target.projectName,
+      path,
+      Git.VersionControlRecursionType.Full,
+      false,
+      false,
+      false,
+      false,
+      commitVersion(commit),
+    );
+
+    const prefix = path === "/" ? "/" : `${path}/`;
+    const files = items.filter((item) => !item.isFolder && (item.path === path || item.path.startsWith(prefix)));
+    if (files.length > limit) {
+      throw new BulkChangeError(
+        "tree_too_large",
+        `${path} contains more than ${limit} files in ${target.repositoryName}; refusing to delete it.`,
+      );
+    }
+
+    return files.map((item) => ({
+      path: item.path,
+      content: null,
+      objectId: item.objectId ?? null,
+      isBinary: false,
+      skipReason: "its content was not loaded",
+    }));
+  } catch (err) {
+    if (isNotFoundError(err)) {
+      return [];
+    }
+    if (isAccessError(err)) {
+      throw new BulkChangeError("no_access", serverMessage(err, `No access to ${path} in ${target.repositoryName}.`));
+    }
+    throw err;
+  }
+}
+
+/**
  * Azure DevOps implementation of `RepoAccess`.
  *
  * Every call runs in the browser with the signed-in user's OAuth token, so permissions are enforced by
@@ -224,11 +276,27 @@ export function createRepoAccess(options: RepoClientOptions = {}): RepoAccess {
         }
       }
 
+      const treePaths = sourcePaths.filter((source) => source.kind === "tree");
+      const trees = await mapWithConcurrency(treePaths, 4, async (source) =>
+        readTreeFiles(client, target, commit, source.path, source.maxEntries ?? DEFAULT_TREE_SCAN_LIMIT),
+      );
+
       const files = await mapWithConcurrency([...wanted], READ_CONCURRENCY, async (path) =>
         readItem(client, target, commit, path, maxFileChars),
       );
 
-      return files.filter((file): file is BaseFile => file !== undefined);
+      // Files read with their content win over the content-less tree listing of the same path.
+      const byPath = new Map<string, BaseFile>();
+      for (const file of trees.flat()) {
+        byPath.set(file.path, file);
+      }
+      for (const file of files) {
+        if (file) {
+          byPath.set(file.path, file);
+        }
+      }
+
+      return [...byPath.values()];
     },
 
     async pushChanges(target, push: PushRequest): Promise<PushResult> {

@@ -1,4 +1,6 @@
 import addLicense from "./examples/add-license.yml";
+import addReadmeCredits from "./examples/add-readme-credits.yml";
+import deleteVsDirectory from "./examples/delete-vs-directory.yml";
 import renameConfig from "./examples/rename-config.yml";
 import updateAgentPool from "./examples/update-agent-pool.yml";
 import { parseDefinition, ParseResult } from "./schema";
@@ -19,6 +21,8 @@ export const EXAMPLES: DefinitionExample[] = [
   { id: "add-license", label: "Add LICENSE where missing", yaml: addLicense },
   { id: "rename-config", label: "Rename settings.json", yaml: renameConfig },
   { id: "update-agent-pool", label: "Update agent pool in azure-pipelines.yml", yaml: updateAgentPool },
+  { id: "delete-vs-directory", label: "Delete .vs directory", yaml: deleteVsDirectory },
+  { id: "add-readme-credits", label: "Add credits to README.md", yaml: addReadmeCredits },
 ];
 
 export function findExample(id: string): DefinitionExample | undefined {
