@@ -6,13 +6,13 @@ import { OperationKind } from "../../../../features/bulkChanges/types";
 import { ButtonGroupBase, MenuButtonBase } from "../../../../components/uiCompat";
 import "./EditorActions.css";
 
-const OPERATIONS: { kind: OperationKind; label: string }[] = [
-  { kind: "add", label: "Add file" },
-  { kind: "addContent", label: "Add content" },
-  { kind: "applyPatch", label: "Apply Git patch" },
-  { kind: "delete", label: "Delete" },
-  { kind: "rename", label: "Rename / move" },
-  { kind: "replace", label: "Replace content" },
+const OPERATIONS: { kind: OperationKind; label: string; iconName: string }[] = [
+  { kind: "add", label: "Add file", iconName: "PageAdd" },
+  { kind: "addContent", label: "Add content", iconName: "TextField" },
+  { kind: "applyPatch", label: "Apply Git patch", iconName: "BranchCompare" },
+  { kind: "delete", label: "Delete", iconName: "Delete" },
+  { kind: "rename", label: "Rename / move", iconName: "Rename" },
+  { kind: "replace", label: "Replace content", iconName: "Edit" },
 ];
 
 const EXAMPLES_MENU: IMenuProps = {
@@ -35,7 +35,7 @@ export function EditorActions({ disabled, onAddOperation, onLoadExample }: Edito
           <Button
             key={operation.kind}
             text={operation.label}
-            iconProps={{ iconName: "Add" }}
+            iconProps={{ iconName: operation.iconName }}
             onClick={() => onAddOperation(operation.kind)}
             disabled={disabled}
             ariaLabel={`Add operation: ${operation.label}`}
