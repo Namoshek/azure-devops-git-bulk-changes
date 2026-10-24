@@ -6,7 +6,6 @@
   overflow: auto;
 }
 
-/* A dialog can contain several diffs; cap each so the list stays scrollable inside the dialog. */
-.bc-dialog-body .bc-diff {
+.bc-dialog-body--limit-content-height > * {
   max-height: 40vh;
 }

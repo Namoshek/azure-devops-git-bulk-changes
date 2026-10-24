@@ -21,7 +21,7 @@ export function PlanDetailsDialog({ plan, onDismiss }: { plan: RepoPlan; onDismi
       footerButtonProps={[{ text: "Close", primary: true, onClick: onDismiss }]}
       contentSize={ContentSize.Auto}
     >
-      <DialogBody>
+      <DialogBody limitContentHeight>
         {plan.opResults.length > 0 ? <OpResultList opResults={plan.opResults} /> : null}
         {plan.warnings.map((warning, index) => (
           <InlineText key={index} tone="warning">
