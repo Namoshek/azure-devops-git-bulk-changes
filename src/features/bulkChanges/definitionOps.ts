@@ -72,7 +72,7 @@ const FIELD_COMMENTS: Record<OperationKind, Record<string, string>> = {
 const COMMENTS: Record<OperationKind, string> = {
   add: "add a file",
   addContent: "add content to an existing file",
-  applyPatch: "apply a Git patch",
+  applyPatch: "apply a Git patch; create with 'git show --format= --no-ext-diff --no-color --find-renames <commit>'",
   delete: "delete a file or directory",
   rename: "rename or move a file",
   replace: "change file content",

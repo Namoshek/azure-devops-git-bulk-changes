@@ -61,7 +61,9 @@ describe("appendOperation", () => {
     expect(addContent).toMatch(/^\s+onFileMissing: skip # error \| skip \| createIfMissing$/m);
 
     const applyPatch = appendOperation(BLANK_DEFINITION, "applyPatch") as string;
-    expect(applyPatch).toContain("# apply a Git patch");
+    expect(applyPatch).toContain(
+      "# apply a Git patch; create with 'git show --format= --no-ext-diff --no-color --find-renames <commit>'",
+    );
     expect(applyPatch).toContain("text Git unified diff; binary and file-mode-only patches are unsupported");
 
     expect(appendOperation(BLANK_DEFINITION, "delete") as string).toMatch(/^\s+onFileMissing: skip # error \| skip$/m);

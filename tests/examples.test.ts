@@ -33,7 +33,8 @@ describe("built-in examples", () => {
     const comments = {
       add: "# add a file",
       addContent: "# add content to an existing file",
-      applyPatch: "# apply a Git patch",
+      applyPatch:
+        "# apply a Git patch; create with 'git show --format= --no-ext-diff --no-color --find-renames <commit>'",
       delete: "# delete a file or directory",
       rename: "# rename or move a file",
       replace: "# change file content",
