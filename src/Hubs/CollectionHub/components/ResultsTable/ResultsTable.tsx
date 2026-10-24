@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Button } from "azure-devops-ui/Components/Button/Button";
 import { ITableColumn, TableColumnLayout, TableColumnStyle } from "azure-devops-ui/Components/Table/Table.Props";
 import { ArrayItemProvider } from "azure-devops-ui/Utilities/Provider";
-import { ApplyResult, RepoPlan } from "../../../../domain/bulkChanges/types";
+import { ApplyResult, RepoPlan } from "../../../../domain/types";
 import { EllipsisText } from "../../../../components/EllipsisText/EllipsisText";
 import { StatusLabel } from "../../../../components/StatusLabel/StatusLabel";
 import { SimpleCell, TableBase, TwoLineCell } from "../../../../components/uiCompat";

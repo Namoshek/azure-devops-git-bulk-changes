@@ -1,8 +1,8 @@
 import { useCallback, useRef, useState } from "react";
-import { applyRepos, previewRepos } from "../../../services/bulkChanges/runner";
-import { createRepoAccess } from "../../../infrastructure/azureDevOps/repoClient";
-import { ApplyResult, BulkChangeDefinition, RepoPlan, RepoTarget } from "../../../domain/bulkChanges/types";
-import { recordBulkChangeHistory } from "../../../services/bulkChanges/history";
+import { applyRepos, previewRepos } from "../../../services/runner";
+import { createRepoAccess } from "../../../infrastructure/repoClient";
+import { ApplyResult, BulkChangeDefinition, RepoPlan, RepoTarget } from "../../../domain/types";
+import { recordBulkChangeHistory } from "../../../services/history";
 import { getErrorMessage } from "../../../utils/errorUtils";
 
 export type RunPhase = "idle" | "previewing" | "previewed" | "applying" | "applied";

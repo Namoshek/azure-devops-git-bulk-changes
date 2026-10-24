@@ -11,9 +11,9 @@ import { DialogBody } from "../../../../components/DialogBody/DialogBody";
 import { EllipsisText } from "../../../../components/EllipsisText/EllipsisText";
 import { StatusLabel } from "../../../../components/StatusLabel/StatusLabel";
 import { SimpleCell, TableBase, TwoLineCell } from "../../../../components/uiCompat";
-import { ApplyResult } from "../../../../domain/bulkChanges/types";
+import { ApplyResult } from "../../../../domain/types";
 import { YamlEditor } from "../YamlEditor/YamlEditor";
-import { BulkChangeHistoryRecord, getRecentBulkChangeHistory } from "../../../../services/bulkChanges/history";
+import { BulkChangeHistoryRecord, getRecentBulkChangeHistory } from "../../../../services/history";
 import { getErrorMessage } from "../../../../utils/errorUtils";
 import "./HistoryDialog.css";
 

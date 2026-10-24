@@ -4,16 +4,10 @@ import { GitRestClient } from "azure-devops-extension-api/Git/GitClient";
 import { CoreRestClient } from "azure-devops-extension-api/Core/CoreClient";
 import * as Git from "azure-devops-extension-api/Git/Git";
 import * as Core from "azure-devops-extension-api/Core/Core";
-import { BaseFile, BulkChangeError, RepoTarget } from "../../domain/bulkChanges/types";
-import {
-  PullRequestRequest,
-  PullRequestResult,
-  PushRequest,
-  PushResult,
-  RepoAccess,
-} from "../../services/bulkChanges/repoAccess";
-import { DEFAULT_DIRECTORY_SCAN_LIMIT, DEFAULT_TREE_SCAN_LIMIT } from "../../domain/bulkChanges/engine/planEngine";
-import { mapWithConcurrency } from "../../utils/concurrency";
+import { BaseFile, BulkChangeError, RepoTarget } from "../domain/types";
+import { PullRequestRequest, PullRequestResult, PushRequest, PushResult, RepoAccess } from "../domain/repoAccess";
+import { DEFAULT_DIRECTORY_SCAN_LIMIT, DEFAULT_TREE_SCAN_LIMIT } from "../domain/engine/planEngine";
+import { mapWithConcurrency } from "../utils/concurrency";
 
 /** Repository file reads are fanned out with this many requests per repository. */
 const READ_CONCURRENCY = 8;

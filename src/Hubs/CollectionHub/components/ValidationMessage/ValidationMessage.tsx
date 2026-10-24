@@ -1,5 +1,5 @@
 import React from "react";
-import { ParseResult } from "../../../../domain/bulkChanges/schema";
+import { ParseResult } from "../../../../domain/schema";
 import { InlineText } from "../../../../components/InlineText/InlineText";
 import "./ValidationMessage.css";
 

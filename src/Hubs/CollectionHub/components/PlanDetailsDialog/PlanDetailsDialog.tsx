@@ -1,6 +1,6 @@
 import React from "react";
 import { ContentSize } from "azure-devops-ui/Callout";
-import { RepoPlan } from "../../../../domain/bulkChanges/types";
+import { RepoPlan } from "../../../../domain/types";
 import { DialogBase } from "../../../../components/uiCompat";
 import { DialogBody } from "../../../../components/DialogBody/DialogBody";
 import { InlineText } from "../../../../components/InlineText/InlineText";

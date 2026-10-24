@@ -1,7 +1,7 @@
 import React from "react";
 import { TitleSize } from "azure-devops-ui/Components/Header/Header.Props";
-import { ParseResult } from "../../../../domain/bulkChanges/schema";
-import { OperationKind } from "../../../../domain/bulkChanges/types";
+import { ParseResult } from "../../../../domain/schema";
+import { OperationKind } from "../../../../domain/types";
 import { CardBase } from "../../../../components/uiCompat";
 import { CardBody } from "../../../../components/CardBody/CardBody";
 import { EditorActions } from "../EditorActions/EditorActions";

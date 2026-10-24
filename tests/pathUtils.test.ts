@@ -5,8 +5,8 @@ import {
   basename,
   isUnderPath,
   extension,
-} from "../src/domain/bulkChanges/engine/pathUtils";
-import { BulkChangeError } from "../src/domain/bulkChanges/types";
+} from "../src/domain/engine/pathUtils";
+import { BulkChangeError } from "../src/domain/types";
 
 describe("normalizeGitPath", () => {
   it("adds a leading slash and keeps POSIX separators", () => {

@@ -1,6 +1,6 @@
 import * as SDK from "azure-devops-extension-sdk";
 import { CommonServiceIds, IExtensionDataManager, IExtensionDataService } from "azure-devops-extension-api";
-import { ApplyResult } from "../../domain/bulkChanges/types";
+import { ApplyResult } from "../domain/types";
 
 const HISTORY_COLLECTION = "gitBulkChangesHistory";
 const MAX_HISTORY_RECORDS = 100;

@@ -15,8 +15,8 @@ jest.mock("azure-devops-extension-api/Core/Core", () => ({}));
 
 import { getClient } from "azure-devops-extension-api/Common/Client";
 import * as SDK from "azure-devops-extension-sdk";
-import { RepoTarget } from "../src/domain/bulkChanges/types";
-import { createRepoAccess } from "../src/infrastructure/azureDevOps/repoClient";
+import { RepoTarget } from "../src/domain/types";
+import { createRepoAccess } from "../src/infrastructure/repoClient";
 
 const client = {
   createPullRequest: jest.fn(),

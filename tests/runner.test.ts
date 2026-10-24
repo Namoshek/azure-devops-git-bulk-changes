@@ -1,8 +1,8 @@
-import { ApplyResult, BaseFile, BulkChangeError, RepoTarget, SourcePath } from "../src/domain/bulkChanges/types";
-import type { PullRequestRequest, PushRequest, RepoAccess } from "../src/services/bulkChanges/repoAccess";
-import { applyRepos, branchFor, previewRepos } from "../src/services/bulkChanges/runner";
+import { ApplyResult, BaseFile, BulkChangeError, RepoTarget, SourcePath } from "../src/domain/types";
+import type { PullRequestRequest, PushRequest, RepoAccess } from "../src/domain/repoAccess";
+import { applyRepos, branchFor, previewRepos } from "../src/services/runner";
 import { mapWithConcurrency } from "../src/utils/concurrency";
-import { parseDefinition } from "../src/domain/bulkChanges/schema";
+import { parseDefinition } from "../src/domain/schema";
 
 function definitionOf(yaml: string) {
   const result = parseDefinition(yaml);

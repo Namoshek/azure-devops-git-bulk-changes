@@ -1,8 +1,8 @@
 import React from "react";
 import { MessageCardSeverity } from "azure-devops-ui/Components/MessageCard/MessageCard.Props";
 import { TitleSize } from "azure-devops-ui/Components/Header/Header.Props";
-import { RunStage, RunSummary, summaryItems } from "../../../../domain/bulkChanges/summary";
-import { ApplyResult, RepoPlan } from "../../../../domain/bulkChanges/types";
+import { RunStage, RunSummary, summaryItems } from "../../../../domain/summary";
+import { ApplyResult, RepoPlan } from "../../../../domain/types";
 import { InlineText } from "../../../../components/InlineText/InlineText";
 import { CardBody } from "../../../../components/CardBody/CardBody";
 import { SummaryCounters } from "../../../../components/SummaryCounters/SummaryCounters";

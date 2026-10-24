@@ -1,4 +1,4 @@
-import { EXAMPLES, parseExample } from "../src/domain/bulkChanges/examples";
+import { EXAMPLES, parseExample } from "../src/domain/examples";
 
 describe("built-in examples", () => {
   it.each(EXAMPLES.map((example) => example.id))("%s is a valid definition", (id) => {

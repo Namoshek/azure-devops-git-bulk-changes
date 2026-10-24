@@ -1,4 +1,4 @@
-import { deriveSummary, statusLabel, summaryItems } from "../src/domain/bulkChanges/summary";
+import { deriveSummary, statusLabel, summaryItems } from "../src/domain/summary";
 
 describe("deriveSummary", () => {
   it("counts plan and apply statuses separately", () => {

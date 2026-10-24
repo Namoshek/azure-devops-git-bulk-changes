@@ -1,5 +1,5 @@
 import React from "react";
-import { SummaryItem } from "../../domain/bulkChanges/summary";
+import { SummaryItem } from "../../domain/summary";
 import { StatusLabel } from "../StatusLabel/StatusLabel";
 import "./SummaryCounters.css";
 

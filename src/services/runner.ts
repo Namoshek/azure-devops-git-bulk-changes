@@ -9,12 +9,12 @@ import {
   RepoSnapshot,
   RepoTarget,
   SourcePath,
-} from "../../domain/bulkChanges/types";
-import { collectSourcePaths, planRepository } from "../../domain/bulkChanges/engine/planEngine";
+} from "../domain/types";
+import { collectSourcePaths, planRepository } from "../domain/engine/planEngine";
 import { buildRefUpdate, planToPushChanges, refName } from "./pushChanges";
-import { RepoAccess } from "./repoAccess";
-import { mapWithConcurrency } from "../../utils/concurrency";
-import { getErrorMessage } from "../../utils/errorUtils";
+import { RepoAccess } from "../domain/repoAccess";
+import { mapWithConcurrency } from "../utils/concurrency";
+import { getErrorMessage } from "../utils/errorUtils";
 
 /** Branch a definition operates on for a given repository. */
 export function branchFor(definition: BulkChangeDefinition, target: RepoTarget): string {

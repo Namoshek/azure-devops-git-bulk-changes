@@ -8,8 +8,8 @@ jest.mock("azure-devops-extension-api", () => ({
 }));
 
 import * as SDK from "azure-devops-extension-sdk";
-import { BulkChangeHistoryRecord, mostRecentHistory } from "../src/services/bulkChanges/history";
-import { getRecentBulkChangeHistory } from "../src/services/bulkChanges/history";
+import { BulkChangeHistoryRecord, mostRecentHistory } from "../src/services/history";
+import { getRecentBulkChangeHistory } from "../src/services/history";
 
 function record(index: number): BulkChangeHistoryRecord {
   return {
