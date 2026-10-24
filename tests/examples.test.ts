@@ -29,6 +29,15 @@ describe("built-in examples", () => {
     });
   });
 
+  it("applies a Git patch to update the agent pool", () => {
+    const result = parseExample("apply-patch");
+    expect(result.ok && result.definition.operations[0]).toMatchObject({ kind: "applyPatch" });
+    expect(result.ok && result.definition.operations[0]).toHaveProperty(
+      "patch",
+      expect.stringContaining("diff --git a/azure-pipelines.yml"),
+    );
+  });
+
   it("includes an explanatory comment for every example operation", () => {
     const comments = {
       add: "# add a file",

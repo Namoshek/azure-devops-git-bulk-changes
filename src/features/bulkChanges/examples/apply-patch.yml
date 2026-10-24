@@ -1,0 +1,19 @@
+writeMode: pullRequest # directCommit | pullRequest
+commitMessage: "Use the self-hosted agent pool"
+pullRequest:
+  branchName: patch-agent-pool
+  title: "Use the self-hosted agent pool"
+  description: "Update the pipeline agent pool using a Git patch."
+  draft: false
+  autoMerge: false
+operations:
+  # apply a Git patch; create with 'git show --format= --no-ext-diff --no-color --find-renames <commit>'
+  - applyPatch:
+      patch: |
+        diff --git a/azure-pipelines.yml b/azure-pipelines.yml
+        --- a/azure-pipelines.yml
+        +++ b/azure-pipelines.yml
+        @@ -1 +1,2 @@
+        -pool: Azure
+        +pool:
+        +  name: Self-Hosted

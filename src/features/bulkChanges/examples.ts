@@ -1,4 +1,5 @@
 import addLicense from "./examples/add-license.yml";
+import applyPatch from "./examples/apply-patch.yml";
 import addReadmeCredits from "./examples/add-readme-credits.yml";
 import deleteVsDirectory from "./examples/delete-vs-directory.yml";
 import renameConfig from "./examples/rename-config.yml";
@@ -19,6 +20,7 @@ export interface DefinitionExample {
  */
 export const EXAMPLES: DefinitionExample[] = [
   { id: "add-license", label: "Add LICENSE where missing", yaml: addLicense },
+  { id: "apply-patch", label: "Update agent pool with a Git patch", yaml: applyPatch },
   { id: "rename-config", label: "Rename settings.json", yaml: renameConfig },
   { id: "update-agent-pool", label: "Update agent pool in azure-pipelines.yml", yaml: updateAgentPool },
   { id: "delete-vs-directory", label: "Delete .vs directory", yaml: deleteVsDirectory },
