@@ -35,8 +35,8 @@ export function CollectionApp() {
   return (
     <PageBase>
       <HeaderBase
-        title="Git bulk changes"
-        titleSize={TitleSize.Medium}
+        title="Git Bulk Changes"
+        titleSize={TitleSize.Large}
         description="Preview and apply the same change across many Git repositories, within the projects and repositories you can access."
       />
 

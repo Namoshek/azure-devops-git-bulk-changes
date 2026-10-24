@@ -22,6 +22,7 @@ export function ScopeCard({ scope }: { scope: ScopeState }) {
     <CardBase
       titleProps={{ text: "Scope", size: TitleSize.Medium }}
       headerDescriptionProps={{ text: "Repositories the change is applied to." }}
+      className="bolt-card-white"
     >
       <CardBody className="bc-scope-body">
         {scope.error ? (

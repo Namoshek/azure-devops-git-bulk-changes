@@ -31,7 +31,7 @@ export function DefinitionCard({
   onAddOperation,
 }: DefinitionCardProps) {
   return (
-    <CardBase titleProps={{ text: "Change definition", size: TitleSize.Medium }}>
+    <CardBase titleProps={{ text: "Change Definition", size: TitleSize.Medium }} className="bolt-card-white">
       <CardBody>
         <YamlEditor value={yamlText} ariaLabel="Change definition YAML" disabled={disabled} onChange={onYamlChange} />
         <EditorActions disabled={disabled} onAddOperation={onAddOperation} onLoadExample={onLoadExample} />
