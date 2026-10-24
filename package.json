@@ -19,7 +19,7 @@
     "create-dev-cert": "dotnet dev-certs https --trust && dotnet dev-certs https --export-path dev.crt -np --format pem"
   },
   "dependencies": {
-    "azure-devops-extension-api": "^4.270.0",
+    "azure-devops-extension-api": "^5.279.1",
     "azure-devops-extension-sdk": "^4.2.0",
     "azure-devops-ui": "^2.278.0",
     "diff": "^9.0.0",
