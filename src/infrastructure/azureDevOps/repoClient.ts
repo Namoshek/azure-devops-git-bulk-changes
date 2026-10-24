@@ -5,7 +5,13 @@ import { CoreRestClient } from "azure-devops-extension-api/Core/CoreClient";
 import * as Git from "azure-devops-extension-api/Git/Git";
 import * as Core from "azure-devops-extension-api/Core/Core";
 import { BaseFile, BulkChangeError, RepoTarget } from "../../domain/bulkChanges/types";
-import { PullRequestRequest, PullRequestResult, PushRequest, PushResult, RepoAccess } from "../../services/bulkChanges/repoAccess";
+import {
+  PullRequestRequest,
+  PullRequestResult,
+  PushRequest,
+  PushResult,
+  RepoAccess,
+} from "../../services/bulkChanges/repoAccess";
 import { DEFAULT_DIRECTORY_SCAN_LIMIT, DEFAULT_TREE_SCAN_LIMIT } from "../../domain/bulkChanges/engine/planEngine";
 import { mapWithConcurrency } from "../../utils/concurrency";
 
@@ -353,7 +359,6 @@ export function createRepoAccess(options: RepoClientOptions = {}): RepoAccess {
 
     async createPullRequest(target, request: PullRequestRequest): Promise<PullRequestResult> {
       const client = gitClient();
-      const autoCompleteSetBy = request.autoMerge ? { id: SDK.getUser().id } : undefined;
 
       const payload = {
         sourceRefName: request.sourceRefName,
@@ -361,7 +366,6 @@ export function createRepoAccess(options: RepoClientOptions = {}): RepoAccess {
         title: request.title,
         description: request.description,
         isDraft: request.isDraft,
-        autoCompleteSetBy,
       } as unknown as Git.GitPullRequest;
 
       let created: Git.GitPullRequest;
@@ -379,6 +383,44 @@ export function createRepoAccess(options: RepoClientOptions = {}): RepoAccess {
 
       if (!created?.pullRequestId) {
         throw new BulkChangeError("pull_request_failed", `No pull request was created in ${target.repositoryName}.`);
+      }
+
+      if (request.autoMerge) {
+        try {
+          const updated = await client.updatePullRequest(
+            {
+              autoCompleteSetBy: { id: SDK.getUser().id },
+              completionOptions: {
+                autoCompleteIgnoreConfigIds: [],
+                bypassPolicy: false,
+              } as unknown as Git.GitPullRequestCompletionOptions,
+            } as unknown as Git.GitPullRequest,
+            target.repositoryId,
+            created.pullRequestId,
+            target.projectName,
+          );
+
+          if (!updated?.autoCompleteSetBy?.id) {
+            throw new BulkChangeError(
+              "pull_request_failed",
+              `Created pull request #${created.pullRequestId}, but Azure DevOps did not enable auto-complete.`,
+            );
+          }
+        } catch (err) {
+          if (err instanceof BulkChangeError) {
+            throw err;
+          }
+          if (isAccessError(err)) {
+            throw new BulkChangeError(
+              "pull_request_denied",
+              serverMessage(err, `Cannot enable auto-complete on pull request #${created.pullRequestId}.`),
+            );
+          }
+          throw new BulkChangeError(
+            "pull_request_failed",
+            `Created pull request #${created.pullRequestId}, but could not enable auto-complete: ${serverMessage(err, "the update failed")}`,
+          );
+        }
       }
 
       return { pullRequestId: created.pullRequestId };
