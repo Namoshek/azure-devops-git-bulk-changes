@@ -163,7 +163,7 @@ export async function applyRepos(
           link: webLink(target, "commit", push.commitId),
         };
       } else {
-        const sourceBranch = definition.branchName.trim() || "bulk-changes";
+        const sourceBranch = definition.pullRequest.branchName.trim() || "bulk-changes";
         const push = await access.pushChanges(target, {
           refUpdates: [buildRefUpdate(sourceBranch, baseCommit)],
           commits: [{ comment: commitMessage, changes }],
@@ -172,9 +172,10 @@ export async function applyRepos(
         const pullRequest = await access.createPullRequest(target, {
           sourceRefName: refName(sourceBranch),
           targetRefName: refName(plan.branch),
-          title: definition.pullRequestTitle || commitMessage,
-          description: definition.pullRequestDescription,
-          isDraft: definition.pullRequestDraft,
+          title: definition.pullRequest.title || commitMessage,
+          description: definition.pullRequest.description,
+          isDraft: definition.pullRequest.draft,
+          autoMerge: definition.pullRequest.autoMerge,
         });
 
         partial[index] = {

@@ -1,15 +1,14 @@
-name: Delete .vs directory
-description: Removes the Visual Studio cache directory /.vs, which should never be committed. Repositories without it are skipped.
 writeMode: pullRequest # directCommit | pullRequest
-branchName: delete-vs-directory
 commitMessage: "Remove the .vs directory"
 pullRequest:
+  branchName: delete-vs-directory
   title: "Remove the .vs directory"
   description: "Removes the Visual Studio cache directory, which should not be under source control."
   draft: false
+  autoMerge: false
 operations:
   # delete a file or directory
   - delete:
       path: /.vs
       recursive: true
-      onMissing: skip # error | skip
+      onFileMissing: skip # error | skip

@@ -1,12 +1,11 @@
-name: Add credits to README.md
-description: Appends a credits section to the end of README.md. Repositories without a README, or that already have the section, are left untouched.
 writeMode: pullRequest # directCommit | pullRequest
-branchName: add-readme-credits
 commitMessage: "Add credits to README.md"
 pullRequest:
+  branchName: add-readme-credits
   title: "Add credits to README.md"
   description: "Appends a credits section to the README."
   draft: false
+  autoMerge: false
 operations:
   # add content to an existing file
   - addContent:
@@ -18,4 +17,4 @@ operations:
         Maintained by the Platform team.
       position: end # start | end | lineNumber
       skipIfPresent: true
-      onMissing: skip # error | skip | createIfMissing
+      onFileMissing: skip # error | skip | createIfMissing

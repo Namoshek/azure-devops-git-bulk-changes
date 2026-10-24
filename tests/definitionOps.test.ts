@@ -4,18 +4,18 @@ import { parseDefinition } from "../src/features/bulkChanges/schema";
 
 describe("appendOperation", () => {
   it("appends an operation to an existing list", () => {
-    const base = "name: Test\noperations:\n  - add:\n      path: /a.txt\n      content: hi\n";
+    const base = "writeMode: directCommit\noperations:\n  - add:\n      path: /a.txt\n      content: hi\n";
     const next = appendOperation(base, "delete");
     expect(next).not.toBeNull();
     const doc = parseDocument(next as string);
     const seq = doc.get("operations");
     expect(seq instanceof YAMLSeq).toBe(true);
     expect((seq as YAMLSeq).items.length).toBe(2);
-    expect(doc.get("name")).toBe("Test");
+    expect(doc.get("writeMode")).toBe("directCommit");
   });
 
   it("creates the operations key when missing", () => {
-    const next = appendOperation("name: Test\nwriteMode: directCommit\n", "rename");
+    const next = appendOperation("writeMode: directCommit\n", "rename");
     expect(next).not.toBeNull();
     const doc = parseDocument(next as string);
     const seq = doc.get("operations");
@@ -57,10 +57,11 @@ describe("appendOperation", () => {
   it("lists the allowed values of enum fields in a comment on the same line", () => {
     const addContent = appendOperation(BLANK_DEFINITION, "addContent") as string;
     expect(addContent).toMatch(/^\s+position: end # start \| end \| lineNumber$/m);
-    expect(addContent).toMatch(/^\s+onMissing: skip # error \| skip \| createIfMissing$/m);
+    expect(addContent).toMatch(/^\s+lineNumber: 1 # 1-based; only used when position is lineNumber$/m);
+    expect(addContent).toMatch(/^\s+onFileMissing: skip # error \| skip \| createIfMissing$/m);
 
-    expect(appendOperation(BLANK_DEFINITION, "delete") as string).toMatch(/^\s+onMissing: skip # error \| skip$/m);
-    expect(appendOperation(BLANK_DEFINITION, "rename") as string).toMatch(/^\s+onMissing: skip # error \| skip$/m);
+    expect(appendOperation(BLANK_DEFINITION, "delete") as string).toMatch(/^\s+onFileMissing: skip # error \| skip$/m);
+    expect(appendOperation(BLANK_DEFINITION, "rename") as string).toMatch(/^\s+onFileMissing: skip # error \| skip$/m);
     expect(appendOperation(BLANK_DEFINITION, "replace") as string).toMatch(
       /^\s+onNoMatch: skip # error \| skip \| createIfMissing$/m,
     );
@@ -68,6 +69,7 @@ describe("appendOperation", () => {
 
   it("documents the write mode in the blank definition", () => {
     expect(BLANK_DEFINITION).toContain("writeMode: pullRequest # directCommit | pullRequest");
+    expect(BLANK_DEFINITION).toContain("autoMerge: false");
   });
 });
 
@@ -77,11 +79,11 @@ describe("countOperations", () => {
   });
 
   it("returns 0 when there is no operations list", () => {
-    expect(countOperations("name: Test\n")).toBe(0);
+    expect(countOperations("writeMode: directCommit\n")).toBe(0);
   });
 
   it("returns 0 for invalid YAML", () => {
-    expect(countOperations("name: [unclosed")).toBe(0);
+    expect(countOperations("writeMode: [unclosed")).toBe(0);
   });
 });
 

@@ -108,7 +108,7 @@ function applyDelete(workspace: VirtualWorkspace, index: number, op: DeleteOpera
 
   if (!found) {
     const noun = op.recursive ? "does not exist or is empty" : "does not exist";
-    if (op.onMissing === "skip") {
+    if (op.onFileMissing === "skip") {
       return result(index, op, path, "noop", `${path} ${noun} — deletion skipped.`);
     }
     return result(index, op, path, "error", `${path} ${noun} in this repository.`);
@@ -143,11 +143,11 @@ function applyAddContent(
   const existing = workspace.get(path);
 
   if (!existing) {
-    if (op.onMissing === "createIfMissing") {
+    if (op.onFileMissing === "createIfMissing") {
       workspace.set(path, asWholeLines(op.content, "\n"));
       return result(index, op, path, "applied", `${path} does not exist — it would be created with the content.`);
     }
-    if (op.onMissing === "skip") {
+    if (op.onFileMissing === "skip") {
       return result(index, op, path, "noop", `${path} does not exist — nothing added.`);
     }
     return result(index, op, path, "error", `${path} does not exist in this repository.`);
@@ -155,7 +155,7 @@ function applyAddContent(
 
   if (existing.content === null) {
     const detail = `cannot be modified because ${describeUnreadable(existing)}`;
-    return result(index, op, path, op.onMissing === "skip" ? "noop" : "error", `${path} ${detail}.`);
+    return result(index, op, path, op.onFileMissing === "skip" ? "noop" : "error", `${path} ${detail}.`);
   }
 
   const current = existing.content;
@@ -215,9 +215,9 @@ function applyRename(
   index: number,
   from: string,
   to: string,
-  onMissing: "error" | "skip",
+  onFileMissing: "error" | "skip",
 ): OpResult {
-  const op = { kind: "rename" as const, from, to, onMissing };
+  const op = { kind: "rename" as const, from, to, onFileMissing };
 
   if (from === to) {
     return result(index, op, from, "error", "Rename source and target are the same path.");
@@ -225,7 +225,7 @@ function applyRename(
 
   const source = workspace.get(from);
   if (!source) {
-    if (onMissing === "skip") {
+    if (onFileMissing === "skip") {
       return result(index, op, from, "noop", `${from} does not exist — rename skipped.`);
     }
     return result(index, op, from, "error", `${from} does not exist in this repository.`);
@@ -339,7 +339,7 @@ export function applyOperation(
     case "delete":
       return applyDelete(workspace, index, op, normalizeGitPath(op.path));
     case "rename":
-      return applyRename(workspace, index, normalizeGitPath(op.from), normalizeGitPath(op.to), op.onMissing);
+      return applyRename(workspace, index, normalizeGitPath(op.from), normalizeGitPath(op.to), op.onFileMissing);
     case "replace": {
       const normalized = normalizeGitPath(op.path);
       return applyReplace(workspace, index, { ...op, path: normalized }, normalized, context.limits);

@@ -39,7 +39,7 @@ const addContentSchema = z.strictObject({
     position: z.enum(["start", "end", "lineNumber"]).default("end"),
     lineNumber: z.number().int().min(1, "must be 1 or greater").nullable().default(null),
     skipIfPresent: z.boolean().default(true),
-    onMissing: z.enum(["error", "skip", "createIfMissing"]).default("error"),
+    onFileMissing: z.enum(["error", "skip", "createIfMissing"]).default("error"),
   }),
 });
 
@@ -47,7 +47,7 @@ const deleteSchema = z.strictObject({
   delete: z.strictObject({
     path: pathField,
     recursive: z.boolean().default(false),
-    onMissing: z.enum(["error", "skip"]).default("error"),
+    onFileMissing: z.enum(["error", "skip"]).default("error"),
   }),
 });
 
@@ -55,7 +55,7 @@ const renameSchema = z.strictObject({
   rename: z.strictObject({
     from: pathField,
     to: pathField,
-    onMissing: z.enum(["error", "skip"]).default("error"),
+    onFileMissing: z.enum(["error", "skip"]).default("error"),
   }),
 });
 
@@ -73,20 +73,25 @@ const replaceSchema = z.strictObject({
 const operationSchema = z.union([addSchema, addContentSchema, deleteSchema, renameSchema, replaceSchema]);
 
 export const definitionSchema = z.strictObject({
-  name: z.string().min(1, "must not be empty").max(120, "must be at most 120 characters"),
-  description: z.string().default(""),
   writeMode: z.enum(["directCommit", "pullRequest"]).default("directCommit"),
   /** Branch to commit to in `directCommit` mode. Defaults to each repository's default branch. */
   branch: z.string().min(1).nullable().default(null),
-  branchName: z.string().min(1, "must not be empty").default("bulk-changes"),
   commitMessage: z.string().min(1, "must not be empty").default("Apply bulk changes"),
   pullRequest: z
     .strictObject({
+      branchName: z.string().min(1, "must not be empty").default("bulk-changes"),
       title: z.string().min(1, "must not be empty").default("Apply bulk changes"),
       description: z.string().default(""),
       draft: z.boolean().default(false),
+      autoMerge: z.boolean().default(false),
     })
-    .default({ title: "Apply bulk changes", description: "", draft: false }),
+    .default({
+      branchName: "bulk-changes",
+      title: "Apply bulk changes",
+      description: "",
+      draft: false,
+      autoMerge: false,
+    }),
   operations: z.array(operationSchema).min(1, "at least one operation is required"),
 });
 
@@ -139,7 +144,7 @@ function normalizeOperation(raw: RawOperationLike): BulkOperation {
       position: op.position as ContentPosition,
       lineNumber: op.lineNumber,
       skipIfPresent: op.skipIfPresent,
-      onMissing: op.onMissing as MissingFileBehavior,
+      onFileMissing: op.onFileMissing as MissingFileBehavior,
     };
     return operation;
   }
@@ -149,7 +154,7 @@ function normalizeOperation(raw: RawOperationLike): BulkOperation {
       kind: "delete",
       path: tryNormalizeGitPath(op.path) as string,
       recursive: op.recursive,
-      onMissing: op.onMissing as MissingSourceBehavior,
+      onFileMissing: op.onFileMissing as MissingSourceBehavior,
     };
     return operation;
   }
@@ -159,7 +164,7 @@ function normalizeOperation(raw: RawOperationLike): BulkOperation {
       kind: "rename",
       from: tryNormalizeGitPath(op.from) as string,
       to: tryNormalizeGitPath(op.to) as string,
-      onMissing: op.onMissing as MissingSourceBehavior,
+      onFileMissing: op.onFileMissing as MissingSourceBehavior,
     };
     return operation;
   }
@@ -229,7 +234,7 @@ export function parseDefinition(yamlText: string): ParseResult {
     return { ok: false, issues: ["The document is empty."] };
   }
   if (typeof parsed !== "object" || Array.isArray(parsed)) {
-    return { ok: false, issues: ["The document must be a mapping with a `name` and an `operations` list."] };
+    return { ok: false, issues: ["The document must be a mapping with an `operations` list."] };
   }
 
   const result = definitionSchema.safeParse(parsed);
@@ -252,11 +257,8 @@ export function parseDefinition(yamlText: string): ParseResult {
     operations: raw.operations.map((operation) => normalizeOperation(operation)),
     writeMode: raw.writeMode,
     branch: raw.branch,
-    branchName: raw.branchName,
     commitMessage: raw.commitMessage,
-    pullRequestTitle: raw.pullRequest.title,
-    pullRequestDescription: raw.pullRequest.description,
-    pullRequestDraft: raw.pullRequest.draft,
+    pullRequest: raw.pullRequest,
   };
 
   return { ok: true, definition, raw };

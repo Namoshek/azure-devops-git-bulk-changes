@@ -5,15 +5,14 @@ import { OperationKind } from "./types";
  * A starter document for a brand-new definition. It is an empty scaffold on purpose: the schema requires
  * at least one operation, so it only validates once the user adds an operation.
  */
-export const BLANK_DEFINITION = `name: My bulk change
-description: Describe what this definition does.
-writeMode: pullRequest # directCommit | pullRequest
-branchName: bulk-changes
+export const BLANK_DEFINITION = `writeMode: pullRequest # directCommit | pullRequest
 commitMessage: "Apply bulk changes"
 pullRequest:
+  branchName: bulk-changes
   title: "Apply bulk changes"
   description: "Applied by the Git Bulk Changes extension."
   draft: false
+  autoMerge: false
 operations: []
 `;
 
@@ -27,11 +26,11 @@ const TEMPLATES: Record<OperationKind, Record<string, unknown>> = {
       position: "end",
       lineNumber: 1,
       skipIfPresent: true,
-      onMissing: "skip",
+      onFileMissing: "skip",
     },
   },
-  delete: { delete: { path: "/obsolete.txt", recursive: false, onMissing: "skip" } },
-  rename: { rename: { from: "/settings.json", to: "/config.json", onMissing: "skip" } },
+  delete: { delete: { path: "/obsolete.txt", recursive: false, onFileMissing: "skip" } },
+  rename: { rename: { from: "/settings.json", to: "/config.json", onFileMissing: "skip" } },
   replace: {
     replace: {
       path: "/azure-pipelines.yml",
@@ -48,11 +47,11 @@ const FIELD_COMMENTS: Record<OperationKind, Record<string, string>> = {
   add: {},
   addContent: {
     position: "start | end | lineNumber",
-    lineNumber: "only used when position is lineNumber",
-    onMissing: "error | skip | createIfMissing",
+    lineNumber: "only used when position is lineNumber (starts at line 1)",
+    onFileMissing: "error | skip | createIfMissing",
   },
-  delete: { onMissing: "error | skip" },
-  rename: { onMissing: "error | skip" },
+  delete: { onFileMissing: "error | skip" },
+  rename: { onFileMissing: "error | skip" },
   replace: { onNoMatch: "error | skip | createIfMissing" },
 };
 

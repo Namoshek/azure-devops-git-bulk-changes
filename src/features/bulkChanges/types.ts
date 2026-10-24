@@ -8,7 +8,7 @@
 /** Discriminator for the supported bulk operations. */
 export type OperationKind = "add" | "addContent" | "delete" | "rename" | "replace";
 
-/** What to do when an operation's target file does not exist, or a `replace` finds no match. */
+/** What to do when an operation's target file does not exist. */
 export type MissingFileBehavior = "error" | "skip" | "createIfMissing";
 
 /** What to do when a `replace` operation finds no match in a file. */
@@ -39,7 +39,7 @@ export interface AddContentOperation {
   lineNumber: number | null;
   /** When true the operation is a no-op if the file already contains the content. */
   skipIfPresent: boolean;
-  onMissing: MissingFileBehavior;
+  onFileMissing: MissingFileBehavior;
 }
 
 export interface DeleteOperation {
@@ -47,7 +47,7 @@ export interface DeleteOperation {
   path: string;
   /** When true `path` may be a directory, and everything below it is deleted. */
   recursive: boolean;
-  onMissing: MissingSourceBehavior;
+  onFileMissing: MissingSourceBehavior;
 }
 
 export interface RenameOperation {
@@ -56,7 +56,7 @@ export interface RenameOperation {
   from: string;
   /** New target path. */
   to: string;
-  onMissing: MissingSourceBehavior;
+  onFileMissing: MissingSourceBehavior;
 }
 
 export interface ReplaceOperation {
@@ -86,12 +86,16 @@ export interface BulkChangeDefinition {
    * Only meaningful for `directCommit`; pull requests always target the default branch.
    */
   branch: string | null;
-  /** Placeholder template for pull request / new branch names, e.g. `bulk-changes`. */
-  branchName: string;
   commitMessage: string;
-  pullRequestTitle: string;
-  pullRequestDescription: string;
-  pullRequestDraft: boolean;
+  pullRequest: {
+    /** Placeholder template for pull request source branch names, e.g. `bulk-changes`. */
+    branchName: string;
+    title: string;
+    description: string;
+    draft: boolean;
+    /** Enable Azure DevOps auto-complete after pull request requirements are satisfied. */
+    autoMerge: boolean;
+  };
 }
 
 /** A repository the user selected, with just enough metadata to act on it. */

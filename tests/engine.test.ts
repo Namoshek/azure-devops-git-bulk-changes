@@ -160,10 +160,10 @@ describe("applyOperation", () => {
     expect(result.message).toContain("binary");
   });
 
-  it("delete honours onMissing", () => {
+  it("delete honours onFileMissing", () => {
     const ws = VirtualWorkspace.fromBaseFiles([file("/a.txt", "x")]);
-    const remove = (path: string, onMissing: "error" | "skip", index: number) =>
-      applyOperation(ws, { kind: "delete", path, recursive: false, onMissing }, index, context).severity;
+    const remove = (path: string, onFileMissing: "error" | "skip", index: number) =>
+      applyOperation(ws, { kind: "delete", path, recursive: false, onFileMissing }, index, context).severity;
     expect(remove("/missing.txt", "skip", 0)).toBe("noop");
     expect(remove("/missing.txt", "error", 1)).toBe("error");
     expect(remove("/a.txt", "error", 2)).toBe("applied");
@@ -179,7 +179,7 @@ describe("applyOperation", () => {
     ]);
     const result = applyOperation(
       ws,
-      { kind: "delete", path: "/.vs", recursive: true, onMissing: "error" },
+      { kind: "delete", path: "/.vs", recursive: true, onFileMissing: "error" },
       0,
       context,
     );
@@ -188,10 +188,10 @@ describe("applyOperation", () => {
     expect(ws.paths()).toEqual(["/.vsx/keep.txt", "/README.md"]);
   });
 
-  it("recursive delete honours onMissing for a missing directory", () => {
+  it("recursive delete honours onFileMissing for a missing directory", () => {
     const ws = VirtualWorkspace.fromBaseFiles([file("/README.md", "x")]);
-    const remove = (onMissing: "error" | "skip") =>
-      applyOperation(ws, { kind: "delete", path: "/.vs", recursive: true, onMissing }, 0, context).severity;
+    const remove = (onFileMissing: "error" | "skip") =>
+      applyOperation(ws, { kind: "delete", path: "/.vs", recursive: true, onFileMissing }, 0, context).severity;
     expect(remove("skip")).toBe("noop");
     expect(remove("error")).toBe("error");
   });
@@ -208,7 +208,7 @@ describe("applyOperation", () => {
           position: "end",
           lineNumber: null,
           skipIfPresent: true,
-          onMissing: "error",
+          onFileMissing: "error",
           ...overrides,
         },
         0,
@@ -266,11 +266,11 @@ describe("applyOperation", () => {
       expect(ws.get("/README.md")?.content).toBe("credits\ncredits\n");
     });
 
-    it("honours onMissing for a missing file", () => {
-      expect(addContent([], { onMissing: "error" }).result.severity).toBe("error");
-      expect(addContent([], { onMissing: "skip" }).result.severity).toBe("noop");
+    it("honours onFileMissing for a missing file", () => {
+      expect(addContent([], { onFileMissing: "error" }).result.severity).toBe("error");
+      expect(addContent([], { onFileMissing: "skip" }).result.severity).toBe("noop");
 
-      const created = addContent([], { onMissing: "createIfMissing" });
+      const created = addContent([], { onFileMissing: "createIfMissing" });
       expect(created.result.severity).toBe("applied");
       expect(created.ws.get("/README.md")?.content).toBe("credits\n");
     });
@@ -285,15 +285,15 @@ describe("applyOperation", () => {
   it("rename errors on a missing source, an occupied target and an identical path", () => {
     const ws = VirtualWorkspace.fromBaseFiles([file("/a.txt", "x"), file("/b.txt", "y")]);
     expect(
-      applyOperation(ws, { kind: "rename", from: "/nope", to: "/c.txt", onMissing: "error" }, 0, context).severity,
+      applyOperation(ws, { kind: "rename", from: "/nope", to: "/c.txt", onFileMissing: "error" }, 0, context).severity,
     ).toBe("error");
     expect(
-      applyOperation(ws, { kind: "rename", from: "/a.txt", to: "/b.txt", onMissing: "error" }, 1, context).severity,
+      applyOperation(ws, { kind: "rename", from: "/a.txt", to: "/b.txt", onFileMissing: "error" }, 1, context).severity,
     ).toBe("error");
     expect(
-      applyOperation(ws, { kind: "rename", from: "/a.txt", to: "/a.txt", onMissing: "error" }, 2, context).severity,
+      applyOperation(ws, { kind: "rename", from: "/a.txt", to: "/a.txt", onFileMissing: "error" }, 2, context).severity,
     ).toBe("error");
-    const ok = applyOperation(ws, { kind: "rename", from: "/a.txt", to: "/c.txt", onMissing: "error" }, 3, context);
+    const ok = applyOperation(ws, { kind: "rename", from: "/a.txt", to: "/c.txt", onFileMissing: "error" }, 3, context);
     expect(ok.severity).toBe("applied");
   });
 
@@ -301,7 +301,7 @@ describe("applyOperation", () => {
     const ws = VirtualWorkspace.fromBaseFiles([file("/Config.json", "x"), file("/legacy.json", "y")]);
     const result = applyOperation(
       ws,
-      { kind: "rename", from: "/legacy.json", to: "/config.json", onMissing: "error" },
+      { kind: "rename", from: "/legacy.json", to: "/config.json", onFileMissing: "error" },
       0,
       context,
     );
@@ -458,8 +458,7 @@ describe("applyOperation", () => {
 describe("planRepository", () => {
   it("reports would-change with the created file and its diff", () => {
     const { plan } = planOf(
-      `name: Add
-operations:
+      `operations:
   - add:
       path: /LICENSE
       content: "MIT"
@@ -478,8 +477,7 @@ operations:
 
   it("reports no-change when the file already has the content", () => {
     const { plan } = planOf(
-      `name: Add
-operations:
+      `operations:
   - add:
       path: /LICENSE
       onlyIfMissing: true
@@ -495,8 +493,7 @@ operations:
 
   it("fails the whole repository when one operation errors", () => {
     const { plan } = planOf(
-      `name: Broken
-operations:
+      `operations:
   - add:
       path: /LICENSE
       content: "MIT"
@@ -516,8 +513,7 @@ operations:
 
   it("reads nested directories from the top-level directory only", () => {
     const { sourcePaths } = planOf(
-      `name: Nested
-operations:
+      `operations:
   - replace:
       path: /src/main.ts
       find: "a"
@@ -541,8 +537,7 @@ operations:
       skipReason: "its content was not loaded",
     });
     const { sourcePaths, plan } = planOf(
-      `name: Delete dir
-operations:
+      `operations:
   - delete:
       path: /.vs
       recursive: true
@@ -564,8 +559,7 @@ operations:
 
   it("applies operations in order, so add-then-replace works", () => {
     const { plan } = planOf(
-      `name: Compose
-operations:
+      `operations:
   - add:
       path: /config.yml
       content: "pool: Azure\\n"
@@ -583,8 +577,7 @@ operations:
 
   it("applies rename-then-replace as one rename plus one edit", () => {
     const { plan } = planOf(
-      `name: Move then edit
-operations:
+      `operations:
   - rename:
       from: /settings.json
       to: /config.json
@@ -615,15 +608,14 @@ operations:
 
   it("skips nothing but reports no-change for an empty repository with only missing-source skips", () => {
     const { plan } = planOf(
-      `name: Skip everything
-operations:
+      `operations:
   - delete:
       path: /nope.txt
-      onMissing: skip
+      onFileMissing: skip
   - rename:
       from: /nope.json
       to: /other.json
-      onMissing: skip
+      onFileMissing: skip
 `,
       [],
     );
@@ -633,8 +625,7 @@ operations:
 
   it("keeps the branch and target metadata", () => {
     const { plan } = planOf(
-      `name: Add
-operations:
+      `operations:
   - add:
       path: /a
       content: "x"

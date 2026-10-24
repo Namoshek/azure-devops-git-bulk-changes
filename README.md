@@ -31,15 +31,17 @@ preview can you apply the changes.
   so the hub keeps a polished look and adapts to either host theme.
 - **Operations**: `add` (optionally only when missing), `addContent` (insert at the start, the end or a
   line number), `delete` (a file, or a whole directory with `recursive: true`), `rename`/`move`, and
-  `replace` (literal string or regular expression, with configurable `onNoMatch` behaviour). Operations
-  are appended one at a time, so a definition can grow to any number of steps — the templates are
-  starting points you extend, not the only supported scenarios. Keys and enum values are camelCase, and
-  each appended operation lists the allowed values of its enum fields in a comment.
+  `replace` (literal string or regular expression, with configurable `onNoMatch` behaviour). Missing-file
+  handling uses `onFileMissing`, separately from replace's `onNoMatch`. Operations are appended one at a
+  time, so a definition can grow to any number of steps — the templates are starting points you extend,
+  not the only supported scenarios. Keys and enum values are camelCase, and each appended operation lists
+  the allowed values of its enum fields in a comment.
 - **Exact, case-sensitive paths only** in v1 — no glob matching, so a definition says precisely which
   files it touches. A definition that lists a missing path surfaces as a per-repository skip or error
   instead of silently doing nothing.
 - **Two write modes**, chosen in the YAML (`writeMode`): commit directly to a branch, or create a
-  branch and open a pull request per repository.
+  branch and open a pull request per repository. Pull requests can opt into Azure DevOps auto-complete,
+  which merges only after the configured policies and requirements pass.
 - **Dry-run diffs computed locally**, never sent to the server.
 - **Fail-isolated execution**: one repository failing never stops the others, and every failure is
   reported with a specific reason in the result row.
@@ -47,20 +49,23 @@ preview can you apply the changes.
 ### Example definition
 
 ```yaml
-name: Add LICENSE where missing
 writeMode: pullRequest # directCommit | pullRequest
-branchName: add-license
 commitMessage: "Add MIT LICENSE file"
 pullRequest:
+  branchName: add-license
   title: "Add MIT LICENSE file"
   description: "Added by the Git Bulk Changes extension."
+  draft: false
+  autoMerge: false
 operations:
+  # add a file
   - add:
       path: /LICENSE
       onlyIfMissing: true
       content: |
         MIT License
         ...
+  # change file content
   - replace:
       path: /azure-pipelines.yml
       find: "pool: Azure"

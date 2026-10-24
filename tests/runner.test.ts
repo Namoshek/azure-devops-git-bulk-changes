@@ -93,7 +93,6 @@ function createStub(options: StubOptions = {}) {
 }
 
 const ADD_LICENSE = `
-name: Add LICENSE
 writeMode: directCommit
 commitMessage: "Add LICENSE"
 operations:
@@ -104,14 +103,14 @@ operations:
 `;
 
 const PR_MODE = `
-name: Add LICENSE via PR
 writeMode: pullRequest
-branchName: add-license
 commitMessage: "Add LICENSE"
 pullRequest:
+  branchName: add-license
   title: "Add LICENSE"
   description: "body"
-  draft: true
+  draft: false
+  autoMerge: true
 operations:
   - add:
       path: /LICENSE
@@ -131,7 +130,6 @@ describe("branchFor", () => {
 
   it("uses the explicit branch in direct mode", () => {
     const definition = definitionOf(`
-name: Direct on branch
 writeMode: directCommit
 branch: release/1.0
 operations:
@@ -188,7 +186,6 @@ describe("previewRepos", () => {
   it("marks binary files as untouchable and reports no-change", async () => {
     const { access } = createStub({ files: { a: { "/image.png": "" } }, binaryPaths: ["/image.png"] });
     const definition = definitionOf(`
-name: Replace in binary
 operations:
   - replace:
       path: /image.png
@@ -279,7 +276,8 @@ describe("applyRepos", () => {
       targetRefName: "refs/heads/main",
       title: "Add LICENSE",
       description: "body",
-      isDraft: true,
+      isDraft: false,
+      autoMerge: true,
     });
   });
 

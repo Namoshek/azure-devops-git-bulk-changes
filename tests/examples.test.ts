@@ -15,7 +15,7 @@ describe("built-in examples", () => {
       kind: "delete",
       path: "/.vs",
       recursive: true,
-      onMissing: "skip",
+      onFileMissing: "skip",
     });
   });
 
@@ -27,5 +27,25 @@ describe("built-in examples", () => {
       position: "end",
       skipIfPresent: true,
     });
+  });
+
+  it("includes an explanatory comment for every example operation", () => {
+    const comments = {
+      add: "# add a file",
+      addContent: "# add content to an existing file",
+      delete: "# delete a file or directory",
+      rename: "# rename or move a file",
+      replace: "# change file content",
+    } as const;
+
+    for (const example of EXAMPLES) {
+      const result = parseExample(example.id);
+      if (!result.ok) {
+        throw new Error(result.issues.join("; "));
+      }
+      for (const operation of result.definition.operations) {
+        expect(example.yaml).toContain(`  ${comments[operation.kind]}\n  - ${operation.kind}:`);
+      }
+    }
   });
 });

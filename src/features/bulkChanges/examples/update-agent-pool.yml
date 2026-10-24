@@ -1,15 +1,13 @@
-name: Update agent pool in azure-pipelines.yml
-description: |
-  Replaces the hosted agent pool with a self-hosted pool in every azure-pipelines.yml.
-  Repositories without the pipeline file or without the pool line are skipped.
 writeMode: pullRequest # directCommit | pullRequest
-branchName: update-agent-pool
 commitMessage: "Use the self-hosted agent pool"
 pullRequest:
+  branchName: update-agent-pool
   title: "Use the self-hosted agent pool"
   description: "Bulk update of the agent pool in azure-pipelines.yml."
   draft: true
+  autoMerge: false
 operations:
+  # change file content
   - replace:
       path: /azure-pipelines.yml
       find: "pool: Azure"

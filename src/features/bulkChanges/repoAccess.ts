@@ -25,6 +25,8 @@ export interface PullRequestRequest {
   title: string;
   description: string;
   isDraft: boolean;
+  /** Enable Azure DevOps auto-complete after pull request requirements are satisfied. */
+  autoMerge: boolean;
 }
 
 export interface PullRequestResult {

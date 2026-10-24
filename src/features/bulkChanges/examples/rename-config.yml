@@ -1,9 +1,8 @@
-name: Rename settings.json to config.json
-description: Moves /settings.json to /config.json, keeping repositories without the file untouched.
 writeMode: directCommit # directCommit | pullRequest
 commitMessage: "Rename settings.json to config.json"
 operations:
+  # rename or move a file
   - rename:
       from: /settings.json
       to: /config.json
-      onMissing: skip # error | skip
+      onFileMissing: skip # error | skip

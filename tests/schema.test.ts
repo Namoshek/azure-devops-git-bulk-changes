@@ -11,8 +11,7 @@ function valid(definition: string) {
 describe("parseDefinition", () => {
   it("accepts a minimal add definition and applies defaults", () => {
     const definition = valid(`
-name: Add file
-operations:
+  operations:
   - add:
       path: /LICENSE
       content: "hello"
@@ -22,40 +21,66 @@ operations:
     expect(definition.operations[0]).toEqual({ kind: "add", path: "/LICENSE", content: "hello", onlyIfMissing: false });
     expect(definition.writeMode).toBe("directCommit");
     expect(definition.branch).toBeNull();
-    expect(definition.branchName).toBe("bulk-changes");
     expect(definition.commitMessage).toBe("Apply bulk changes");
-    expect(definition.pullRequestDraft).toBe(false);
+    expect(definition.pullRequest).toEqual({
+      branchName: "bulk-changes",
+      title: "Apply bulk changes",
+      description: "",
+      draft: false,
+      autoMerge: false,
+    });
   });
 
   it("maps pullRequest write mode and pull request settings", () => {
     const definition = valid(`
-name: PR mode
 writeMode: pullRequest
-branchName: bulk/add-license
 commitMessage: "Add LICENSE"
 pullRequest:
+  branchName: bulk/add-license
   title: "Add LICENSE"
   description: "body"
-  draft: true
+  draft: false
+  autoMerge: true
 operations:
   - add:
       path: /LICENSE
       content: "x"
 `);
     expect(definition.writeMode).toBe("pullRequest");
-    expect(definition.branchName).toBe("bulk/add-license");
-    expect(definition.pullRequestTitle).toBe("Add LICENSE");
-    expect(definition.pullRequestDescription).toBe("body");
-    expect(definition.pullRequestDraft).toBe(true);
+    expect(definition.pullRequest).toEqual({
+      branchName: "bulk/add-license",
+      title: "Add LICENSE",
+      description: "body",
+      draft: false,
+      autoMerge: true,
+    });
+  });
+
+  it("rejects removed definition metadata and a top-level branchName", () => {
+    const result = parseDefinition(`
+name: Legacy definition
+description: No longer supported
+branchName: legacy-branch
+operations:
+  - add:
+      path: /LICENSE
+      content: "x"
+`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      const issues = result.issues.join(" ");
+      expect(issues).toContain("name");
+      expect(issues).toContain("description");
+      expect(issues).toContain("branchName");
+    }
   });
 
   it("normalizes operation fields to the domain model", () => {
     const definition = valid(`
-name: Mixed operations
-operations:
+  operations:
   - delete:
       path: /old.txt
-      onMissing: skip
+      onFileMissing: skip
   - rename:
       from: /a/settings.json
       to: /a/config.json
@@ -72,13 +97,13 @@ operations:
       kind: "delete",
       path: "/old.txt",
       recursive: false,
-      onMissing: "skip",
+      onFileMissing: "skip",
     });
     expect(definition.operations[1]).toEqual({
       kind: "rename",
       from: "/a/settings.json",
       to: "/a/config.json",
-      onMissing: "error",
+      onFileMissing: "error",
     });
     expect(definition.operations[2]).toEqual({
       kind: "replace",
@@ -93,8 +118,7 @@ operations:
 
   it("rejects snake_case keys", () => {
     const result = parseDefinition(`
-name: Old style
-write_mode: pull_request
+  write_mode: pull_request
 operations:
   - add:
       path: /a
@@ -108,8 +132,7 @@ operations:
 
   it("maps addContent with its defaults", () => {
     const definition = valid(`
-name: Credits
-operations:
+  operations:
   - addContent:
       path: /README.md
       content: "credits"
@@ -121,14 +144,13 @@ operations:
       position: "end",
       lineNumber: null,
       skipIfPresent: true,
-      onMissing: "error",
+      onFileMissing: "error",
     });
   });
 
   it("requires lineNumber when addContent position is lineNumber", () => {
     const result = parseDefinition(`
-name: Credits
-operations:
+  operations:
   - addContent:
       path: /README.md
       content: "credits"
@@ -142,8 +164,7 @@ operations:
 
   it("rejects an unknown addContent position", () => {
     const result = parseDefinition(`
-name: Credits
-operations:
+  operations:
   - addContent:
       path: /README.md
       content: "credits"
@@ -154,8 +175,7 @@ operations:
 
   it("maps a recursive delete", () => {
     const definition = valid(`
-name: Delete dir
-operations:
+  operations:
   - delete:
       path: /.vs
       recursive: true
@@ -164,14 +184,13 @@ operations:
       kind: "delete",
       path: "/.vs",
       recursive: true,
-      onMissing: "error",
+      onFileMissing: "error",
     });
   });
 
   it("rejects unknown keys", () => {
     const result = parseDefinition(`
-name: Bad key
-operations:
+  operations:
   - add:
       path: /LICENSE
       content: "x"
@@ -185,10 +204,23 @@ operations:
     }
   });
 
+  it("rejects the ambiguous onMissing operation field", () => {
+    const result = parseDefinition(`
+operations:
+  - addContent:
+      path: /README.md
+      content: credits
+      onMissing: skip
+`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.join(" ")).toContain("onMissing");
+    }
+  });
+
   it("rejects a top-level unknown key", () => {
     const result = parseDefinition(`
-name: Bad
-operations:
+  operations:
   - add:
       path: /LICENSE
       content: "x"
@@ -201,7 +233,7 @@ glob: "**/*.ts"
   });
 
   it("requires at least one operation", () => {
-    const result = parseDefinition("name: Empty\noperations: []\n");
+    const result = parseDefinition("operations: []\n");
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.issues.join(" ")).toContain("at least one operation");
@@ -210,8 +242,7 @@ glob: "**/*.ts"
 
   it("rejects escaping paths", () => {
     const result = parseDefinition(`
-name: Escape
-operations:
+  operations:
   - add:
       path: ../outside
       content: "x"
@@ -224,8 +255,7 @@ operations:
 
   it("rejects multiple operations keys in one entry", () => {
     const result = parseDefinition(`
-name: Two ops
-operations:
+  operations:
   - add:
       path: /a
       content: "x"
@@ -236,7 +266,7 @@ operations:
   });
 
   it("reports invalid YAML clearly", () => {
-    const result = parseDefinition("name: Broken\n  bad indentation: [");
+    const result = parseDefinition("writeMode: Broken\n  bad indentation: [");
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.issues[0]).toContain("not valid YAML");
@@ -258,8 +288,7 @@ operations:
 
   it("rejects `branch` in pull-request mode", () => {
     const result = parseDefinition(`
-name: Branch in PR
-writeMode: pullRequest
+  writeMode: pullRequest
 branch: feature/x
 operations:
   - add:
@@ -274,8 +303,7 @@ operations:
 
   it("rejects an invalid regex when useRegex is true", () => {
     const result = parseDefinition(`
-name: Bad regex
-operations:
+  operations:
   - replace:
       path: /a.txt
       find: "(unclosed"
@@ -290,8 +318,7 @@ operations:
 
   it("rejects invalid regex flags", () => {
     const result = parseDefinition(`
-name: Bad flags
-operations:
+  operations:
   - replace:
       path: /a.txt
       find: "x"
@@ -307,8 +334,7 @@ operations:
 
   it("keeps multi-line content blocks intact", () => {
     const definition = valid(`
-name: Multiline
-operations:
+  operations:
   - add:
       path: /LICENSE
       content: |

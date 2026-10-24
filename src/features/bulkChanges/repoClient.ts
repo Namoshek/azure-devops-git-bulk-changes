@@ -1,4 +1,5 @@
 import { getClient } from "azure-devops-extension-api/Common/Client";
+import * as SDK from "azure-devops-extension-sdk";
 import { GitRestClient } from "azure-devops-extension-api/Git/GitClient";
 import { CoreRestClient } from "azure-devops-extension-api/Core/CoreClient";
 import * as Git from "azure-devops-extension-api/Git/Git";
@@ -352,6 +353,7 @@ export function createRepoAccess(options: RepoClientOptions = {}): RepoAccess {
 
     async createPullRequest(target, request: PullRequestRequest): Promise<PullRequestResult> {
       const client = gitClient();
+      const autoCompleteSetBy = request.autoMerge ? { id: SDK.getUser().id } : undefined;
 
       const payload = {
         sourceRefName: request.sourceRefName,
@@ -359,6 +361,7 @@ export function createRepoAccess(options: RepoClientOptions = {}): RepoAccess {
         title: request.title,
         description: request.description,
         isDraft: request.isDraft,
+        autoCompleteSetBy,
       } as unknown as Git.GitPullRequest;
 
       let created: Git.GitPullRequest;
