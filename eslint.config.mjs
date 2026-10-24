@@ -68,4 +68,12 @@ export default tseslint.config(
       "@typescript-eslint/no-require-imports": "off",
     },
   },
+
+  // Jest asset shims run under jest's CommonJS runtime, not the project's ESM config.
+  {
+    files: ["tests/*.js"],
+    languageOptions: {
+      sourceType: "commonjs",
+    },
+  },
 );

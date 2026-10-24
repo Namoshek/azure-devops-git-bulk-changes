@@ -1,0 +1,11 @@
+.bc-inline-text--muted {
+  color: var(--text-secondary-color, rgba(0, 0, 0, 0.55));
+}
+
+.bc-inline-text--error {
+  color: var(--status-error-text, rgba(218, 10, 0, 1));
+}
+
+.bc-inline-text--warning {
+  color: var(--status-warning-text, rgba(156, 85, 0, 1));
+}

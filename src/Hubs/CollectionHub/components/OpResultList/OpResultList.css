@@ -1,0 +1,27 @@
+.bc-op-results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bc-op-result {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  align-items: baseline;
+  padding: 6px 0;
+  border-top: 1px solid var(--palette-black-alpha-10);
+}
+
+.bc-op-result:first-child {
+  border-top: none;
+}
+
+.bc-op-kind {
+  min-width: 64px;
+}
+
+.bc-op-path {
+  flex: 0 1 200px;
+  min-width: 80px;
+}

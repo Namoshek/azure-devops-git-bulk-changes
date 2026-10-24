@@ -1,0 +1,12 @@
+.bc-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+/* A dialog can contain several diffs; cap each so the list stays scrollable inside the dialog. */
+.bc-dialog-body .bc-diff {
+  max-height: 40vh;
+}

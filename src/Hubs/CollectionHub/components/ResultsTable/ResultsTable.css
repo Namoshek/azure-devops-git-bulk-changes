@@ -1,0 +1,16 @@
+.bc-result-message {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.bc-result-message > .text-ellipsis {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.bc-result-link {
+  flex: 0 0 auto;
+}

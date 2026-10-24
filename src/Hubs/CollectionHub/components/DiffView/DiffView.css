@@ -1,0 +1,41 @@
+.bc-diff-view {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bc-diff-path {
+  font-weight: 600;
+}
+
+.bc-diff {
+  margin: 0;
+  padding: 8px 0;
+  border: 1px solid var(--palette-black-alpha-20);
+  border-radius: 4px;
+  background-color: var(--palette-neutral-4);
+  font-family: var(--monospace-font-family, "Cascadia Mono", Consolas, "Courier New", monospace);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow: auto;
+  max-height: 340px;
+  white-space: pre;
+}
+
+.bc-diff-line {
+  display: block;
+  padding: 0 8px;
+}
+
+.bc-diff-added {
+  background-color: rgba(102, 183, 128, 0.25);
+}
+
+.bc-diff-removed {
+  background-color: rgba(214, 94, 78, 0.22);
+}
+
+.bc-diff-hunk {
+  color: var(--text-secondary-color);
+  background-color: var(--palette-neutral-8);
+}

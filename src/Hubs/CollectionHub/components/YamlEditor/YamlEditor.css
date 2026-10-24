@@ -1,0 +1,9 @@
+/* Monaco fills a fixed-height box; automaticLayout keeps it responsive inside it. */
+.bc-monaco {
+  min-height: 360px;
+  height: 500px;
+  width: 100%;
+  border: 1px solid var(--palette-black-alpha-30);
+  border-radius: 4px;
+  overflow: hidden;
+}

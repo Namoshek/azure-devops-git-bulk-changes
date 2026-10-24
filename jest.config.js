@@ -4,7 +4,12 @@ module.exports = {
   testEnvironment: "jsdom",
   testMatch: ["**/tests/**/*.test.ts", "**/tests/**/*.test.tsx"],
   setupFilesAfterEnv: ["@testing-library/jest-dom"],
+  // Webpack loads .css/.yml as plain strings (asset/source); mirror that in jest.
+  moduleNameMapper: {
+    "\\.(css|less)$": "<rootDir>/tests/styleStub.js",
+  },
   transform: {
+    "\\.(ya?ml)$": "<rootDir>/tests/ymlTransform.js",
     "^.+\\.tsx?$": [
       "ts-jest",
       {

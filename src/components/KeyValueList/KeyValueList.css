@@ -1,0 +1,11 @@
+.bc-key-value-list {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: start;
+  gap: 4px 24px;
+  margin: 0;
+}
+
+.bc-key-value-list dd {
+  margin: 0;
+}

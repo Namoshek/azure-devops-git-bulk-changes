@@ -34,10 +34,10 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: 24 }}>
+        <div className="page-content page-content-top">
           <MessageCard severity={MessageCardSeverity.Error}>
             <strong>Something went wrong.</strong>
-            <p style={{ margin: "8px 0 0" }}>{this.state.message}</p>
+            <p className="margin-top-8">{this.state.message}</p>
           </MessageCard>
         </div>
       );

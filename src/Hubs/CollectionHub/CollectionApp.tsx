@@ -1,56 +1,70 @@
-import React, { useState, useEffect } from "react";
-import * as SDK from "azure-devops-extension-sdk";
-import { Page as PageBase } from "azure-devops-ui/Components/Page/Page";
-const Page = PageBase as React.ComponentType<React.ComponentProps<typeof PageBase> & { children?: React.ReactNode }>;
-import { Header } from "azure-devops-ui/Components/Header/Header";
+import React from "react";
 import { TitleSize } from "azure-devops-ui/Components/Header/Header.Props";
 import { Spinner } from "azure-devops-ui/Components/Spinner/Spinner";
 import { SpinnerSize } from "azure-devops-ui/Components/Spinner/Spinner.Props";
-import { MessageCard } from "azure-devops-ui/Components/MessageCard/MessageCard";
 import { MessageCardSeverity } from "azure-devops-ui/Components/MessageCard/MessageCard.Props";
-import { getErrorMessage } from "../../utils/errorUtils";
+import { HeaderBase, MessageCardBase, PageBase, asComponent } from "../../components/uiCompat";
+import { useBulkRun } from "./hooks/useBulkRun";
+import { useDefinitionDraft } from "./hooks/useDefinitionDraft";
+import { useProjectRepos } from "./hooks/useProjectRepos";
+import { useSdkReady } from "./hooks/useSdkReady";
+import { DefinitionCard } from "./components/DefinitionCard/DefinitionCard";
+import { RunSection } from "./components/RunSection/RunSection";
+import { ScopeCard } from "./components/ScopeCard/ScopeCard";
+import "./CollectionApp.css";
 
+const SpinnerBase = asComponent(Spinner);
+
+/** The collection hub page. It wires the state hooks together and lays out the cards; each card owns its UI. */
 export function CollectionApp() {
-  const [loading, setLoading] = useState(true);
-  const [initError, setInitError] = useState<string | null>(null);
+  const sdk = useSdkReady();
+  const draft = useDefinitionDraft();
+  const scope = useProjectRepos();
+  const run = useBulkRun();
 
-  useEffect(() => {
-    async function init() {
-      try {
-        await SDK.ready();
-      } catch (err) {
-        setInitError(getErrorMessage(err));
-      } finally {
-        setLoading(false);
-      }
-    }
-    void init();
-  }, []);
-
-  if (loading) {
+  if (!sdk.ready) {
     return (
-      <Page>
+      <PageBase>
         <div className="page-content page-content-top flex-grow flex-row justify-center">
-          <Spinner size={SpinnerSize.large} label="Loading…" />
+          <SpinnerBase size={SpinnerSize.large} label="Loading…" />
         </div>
-      </Page>
-    );
-  }
-
-  if (initError) {
-    return (
-      <Page>
-        <div className="page-content page-content-top">
-          <MessageCard severity={MessageCardSeverity.Error}>Failed to load settings: {initError}</MessageCard>
-        </div>
-      </Page>
+      </PageBase>
     );
   }
 
   return (
-    <Page>
-      <Header title="Git Bulk Changes" titleSize={TitleSize.Large} />
-      <div className="page-content page-content-top rhythm-vertical-16">Extension Content</div>
-    </Page>
+    <PageBase>
+      <HeaderBase
+        title="Git bulk changes"
+        titleSize={TitleSize.Medium}
+        description="Preview and apply the same change across many Git repositories, within the projects and repositories you can access."
+      />
+
+      <div className="page-content page-content-top bc-page">
+        {sdk.error ? (
+          <MessageCardBase severity={MessageCardSeverity.Error} role="alert">
+            Failed to load the extension context: {sdk.error}
+          </MessageCardBase>
+        ) : null}
+
+        <div className="bc-columns">
+          <div className="bc-column-main">
+            <DefinitionCard
+              yamlText={draft.yamlText}
+              parsed={draft.parsed}
+              disabled={run.busy}
+              onYamlChange={draft.setYamlText}
+              onLoadExample={draft.loadExample}
+              onAddOperation={draft.addOperation}
+            />
+          </div>
+          <div className="bc-column-side">
+            <ScopeCard scope={scope} />
+          </div>
+        </div>
+
+        <RunSection definition={draft.definition} targets={scope.targets} run={run} />
+      </div>
+    </PageBase>
   );
 }
