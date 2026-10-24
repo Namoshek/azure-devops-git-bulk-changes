@@ -8,7 +8,7 @@ import { ButtonGroupBase, CardBase, FormItemBase, MessageCardBase, asComponent }
 import { InlineText } from "../../../../components/InlineText/InlineText";
 import { CardBody } from "../../../../components/CardBody/CardBody";
 import { ScopeState } from "../../hooks/useProjectRepos";
-import { RepoDropdown } from "../RepoDropdown/RepoDropdown";
+import { RepositoryDropdown } from "../RepositoryDropdown/RepositoryDropdown";
 import "./ScopeCard.css";
 
 const SpinnerBase = asComponent(Spinner);
@@ -46,7 +46,7 @@ export function ScopeCard({ scope }: { scope: ScopeState }) {
           {scope.loading ? (
             <SpinnerBase size={SpinnerSize.small} label="Loading repositories…" ariaLabel="Loading repositories" />
           ) : (
-            <RepoDropdown scope={scope} />
+            <RepositoryDropdown scope={scope} />
           )}
         </FormItemBase>
 

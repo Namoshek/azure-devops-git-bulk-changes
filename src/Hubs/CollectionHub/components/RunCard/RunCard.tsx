@@ -38,7 +38,7 @@ export function RunCard({ stage, plans, results, summary, busy, done, total, err
       titleProps={{ text: stage === "apply" ? "Apply results" : "Preview results", size: TitleSize.Medium }}
       headerDescriptionProps={{ text: hasRun ? progressText(stage, done, total) : undefined }}
       contentProps={{ contentPadding: false }}
-      className="bolt-card-white"
+      className="bolt-card-white padding-bottom-0"
     >
       <CardBody>
         {error ? (

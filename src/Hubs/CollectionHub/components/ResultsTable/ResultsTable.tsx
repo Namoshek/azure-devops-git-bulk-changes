@@ -1,11 +1,6 @@
 import React, { useMemo } from "react";
 import { Button } from "azure-devops-ui/Components/Button/Button";
-import {
-  ColumnJustification,
-  ITableColumn,
-  TableColumnLayout,
-  TableColumnStyle,
-} from "azure-devops-ui/Components/Table/Table.Props";
+import { ITableColumn, TableColumnLayout, TableColumnStyle } from "azure-devops-ui/Components/Table/Table.Props";
 import { ArrayItemProvider } from "azure-devops-ui/Utilities/Provider";
 import { ApplyResult, RepoPlan } from "../../../../features/bulkChanges/types";
 import { EllipsisText } from "../../../../components/EllipsisText/EllipsisText";
@@ -58,7 +53,7 @@ export function ResultsTable({ plans, results, interactive, onShowDetails }: Res
     {
       id: "repo",
       name: "Repository",
-      width: -50,
+      width: -30,
       readonly: true,
       columnLayout: TableColumnLayout.twoLine,
       columnStyle: TableColumnStyle.Primary,
@@ -100,14 +95,8 @@ export function ResultsTable({ plans, results, interactive, onShowDetails }: Res
       name: "Files",
       width: 70,
       readonly: true,
-      justification: ColumnJustification.Right,
       renderCell: (_row, columnIndex, tableColumn, plan, ariaRowIndex) => (
-        <SimpleCell
-          columnIndex={columnIndex}
-          tableColumn={tableColumn}
-          ariaRowIndex={ariaRowIndex}
-          contentClassName="justify-end"
-        >
+        <SimpleCell columnIndex={columnIndex} tableColumn={tableColumn} ariaRowIndex={ariaRowIndex}>
           <span className="monospaced-s">{plan.desired.length || plan.diffs.length || "-"}</span>
         </SimpleCell>
       ),
