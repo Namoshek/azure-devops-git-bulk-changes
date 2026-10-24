@@ -1,3 +1,7 @@
+.bc-page-root {
+  min-height: 100vh;
+}
+
 .bc-page {
   display: flex;
   flex-direction: column;

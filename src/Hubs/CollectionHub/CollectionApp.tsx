@@ -39,7 +39,7 @@ export function CollectionApp() {
   }
 
   return (
-    <PageBase>
+    <PageBase className="bc-page-root">
       <HeaderBase
         title="Git Bulk Changes"
         titleSize={TitleSize.Large}
