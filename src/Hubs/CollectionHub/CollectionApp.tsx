@@ -1,8 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
+import { GITHUB_URL } from "./components/HelpDialog/HelpDialog";
 import { TitleSize } from "azure-devops-ui/Components/Header/Header.Props";
 import { Spinner } from "azure-devops-ui/Components/Spinner/Spinner";
 import { SpinnerSize } from "azure-devops-ui/Components/Spinner/Spinner.Props";
 import { MessageCardSeverity } from "azure-devops-ui/Components/MessageCard/MessageCard.Props";
+import { MenuItemType } from "azure-devops-ui/Menu";
 import { HeaderBase, MessageCardBase, PageBase, asComponent } from "../../components/uiCompat";
 import { useBulkRun } from "./hooks/useBulkRun";
 import { useDefinitionDraft } from "./hooks/useDefinitionDraft";
@@ -11,12 +13,14 @@ import { useSdkReady } from "./hooks/useSdkReady";
 import { DefinitionCard } from "./components/DefinitionCard/DefinitionCard";
 import { RunSection } from "./components/RunSection/RunSection";
 import { ScopeCard } from "./components/ScopeCard/ScopeCard";
+import { HelpDialog } from "./components/HelpDialog/HelpDialog";
 import "./CollectionApp.css";
 
 const SpinnerBase = asComponent(Spinner);
 
 /** The collection hub page. It wires the state hooks together and lays out the cards; each card owns its UI. */
 export function CollectionApp() {
+  const [helpOpen, setHelpOpen] = useState(false);
   const sdk = useSdkReady();
   const draft = useDefinitionDraft();
   const scope = useProjectRepos();
@@ -38,7 +42,39 @@ export function CollectionApp() {
         title="Git Bulk Changes"
         titleSize={TitleSize.Large}
         description="Preview and apply the same change across many Git repositories, within the projects and repositories you can access."
+        commandBarItems={[
+          {
+            id: "help",
+            text: "Help",
+            ariaLabel: "Help and project links",
+            iconProps: { iconName: "Unknown" },
+            subtle: true,
+            important: true,
+            tooltipProps: { text: "Help" },
+            subMenuProps: {
+              id: "bc-help-menu",
+              items: [
+                {
+                  id: "how-it-works",
+                  text: "How it works",
+                  iconProps: { iconName: "Unknown" },
+                  onActivate: () => setHelpOpen(true),
+                },
+                { id: "divider", itemType: MenuItemType.Divider },
+                {
+                  id: "github",
+                  text: "View on GitHub",
+                  iconProps: { iconName: "NavigateExternalInline" },
+                  href: GITHUB_URL,
+                  target: "_blank",
+                  rel: "noopener noreferrer",
+                },
+              ],
+            },
+          },
+        ]}
       />
+      {helpOpen ? <HelpDialog onDismiss={() => setHelpOpen(false)} /> : null}
 
       <div className="page-content page-content-top bc-page">
         {sdk.error ? (

@@ -1,0 +1,12 @@
+.bc-help-steps {
+  margin: 8px 0 16px;
+  padding-left: 40px;
+}
+
+.bc-help-steps > li {
+  list-style: disc;
+}
+
+.bc-help-steps > li + li {
+  margin-top: 8px;
+}
