@@ -324,8 +324,8 @@ glob: "**/*.ts"
     expect(result.ok).toBe(false);
   });
 
-  it("rejects `branch` in pull-request mode", () => {
-    const result = parseDefinition(`
+  it("accepts `branch` as the pull-request base branch", () => {
+    const definition = valid(`
 writeMode: pullRequest
 branch: feature/x
 operations:
@@ -333,9 +333,51 @@ operations:
       path: /a
       content: "x"
 `);
+    expect(definition.branch).toBe("feature/x");
+  });
+
+  it("rejects a `refs/heads/` prefix", () => {
+    const result = parseDefinition(`
+writeMode: directCommit
+branch: refs/heads/release/1.0
+operations:
+  - add:
+      path: /a
+      content: "x"
+`);
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.issues.join(" ")).toContain("directCommit");
+      expect(result.issues.join(" ")).toContain("plain branch name");
+    }
+  });
+
+  it("rejects a tag ref as the branch target", () => {
+    const result = parseDefinition(`
+writeMode: directCommit
+branch: refs/tags/v1.0
+operations:
+  - add:
+      path: /a
+      content: "x"
+`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.join(" ")).toContain("not a ref such as");
+    }
+  });
+
+  it("rejects branch names Git would refuse to push", () => {
+    const result = parseDefinition(`
+writeMode: directCommit
+branch: feature..x
+operations:
+  - add:
+      path: /a
+      content: "x"
+`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.join(" ")).toContain("valid Git branch name");
     }
   });
 

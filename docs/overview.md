@@ -13,13 +13,13 @@ The extension adds a page to the collection settings that lets any user of the o
 
 ### Operations
 
-| Operation    | Behaviour                                                                            |
-| ------------ | ------------------------------------------------------------------------------------ |
-| `add`        | Create a file; optionally only when it is missing.                                   |
-| `addContent` | Insert text at the `start`, the `end` or a `lineNumber` of an existing file.         |
-| `applyPatch` | Apply a unified Git patch across one or more text files.                             |
-| `delete`     | Remove a file, or a whole directory with `recursive: true`; can ignore missing ones. |
-| `rename`     | Rename or move a file (content is carried over).                                     |
+| Operation    | Behaviour                                                                                                                                                                                                 |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `add`        | Create a file; optionally only when it is missing.                                                                                                                                                        |
+| `addContent` | Insert text at the `start`, the `end` or a `lineNumber` of an existing file.                                                                                                                              |
+| `applyPatch` | Apply a unified Git patch across one or more text files.                                                                                                                                                  |
+| `delete`     | Remove a file, or a whole directory with `recursive: true`; can ignore missing ones.                                                                                                                      |
+| `rename`     | Rename or move a file (content is carried over).                                                                                                                                                          |
 | `replace`    | Replace literal text by default. With `useRegex: true`, `find` is a JavaScript regex, `$1` or `$<name>` in `replace` reference capture groups, and all matches are replaced (`g` is added automatically). |
 
 Paths are exact and case-sensitive, so a definition always says precisely which files it touches; listing a directory expands to the files inside it. Patch paths are read from their headers and must stay inside the repository. Binary patches, file-mode changes, and hunks that do not match the current file content are rejected. A file that cannot be read as text (binary, too large) is skipped with a reason instead of being mangled.
@@ -28,8 +28,10 @@ Paths are exact and case-sensitive, so a definition always says precisely which 
 
 The `writeMode` defines how the changes will be applied to the repositories:
 
-- **Pull requests** (`writeMode: pullRequest`): a commit on a new source branch plus an open pull request per repository. Set `pullRequest.autoMerge: true` to enable Azure DevOps auto-complete; it merges only after the pull request's configured requirements pass.
-- **Direct commit** (`writeMode: directCommit`, the default): commit straight onto the current branch tip. Requires Contribute permission on the branch, and the changes cannot be undone from this page. Requires Contribute permission on the branch, and the changes cannot be undone from this page.
+- **Pull requests** (`writeMode: pullRequest`): a commit on a new source branch plus an open pull request per repository. Set `pullRequest.autoMerge: true` to enable Azure DevOps auto-complete; it merges only after the pull request's configured requirements pass. The optional `branch` key selects the base branch the pull request is merged into.
+- **Direct commit** (`writeMode: directCommit`, the default): commit straight onto the target branch. Set the optional `branch` key to read from and commit to a branch other than the repository's default. Requires Contribute permission on the branch, and the changes cannot be undone from this page.
+
+When `branch` is omitted, each repository's default branch is used in both modes; when it is set, repositories that do not have that branch fail with a clear reason instead of being written.
 
 ### Example definition
 

@@ -26,6 +26,41 @@ const pathField = z
 
 const flagsField = z.string().refine((value) => VALID_FLAGS.test(value), "may only contain the flags i, m, s, u, v, y");
 
+/**
+ * Branch names used by `branch` and `pullRequest.branchName`.
+ *
+ * Only plain names (`release/1.0`) are accepted. Any `refs/...` form is rejected, including
+ * `refs/heads/`: it is redundant here, and reads resolve arbitrary refs while `GitPush` only ever
+ * accepts `refs/heads/...`, so a tag or other ref would be readable but impossible to commit to.
+ */
+const BRANCH_RULES: Array<[pattern: RegExp, message: string]> = [
+  [/^\//, "must not start with '/'"],
+  [/\/$/, "must not end with '/'"],
+  [/\/\/|\.\.|^-|-$|\.$|\.lock$/, "must be a valid Git branch name (no '..', leading or trailing '-', trailing '.lock')"],
+  [/^refs\//i, "must be a plain branch name, not a ref such as 'refs/heads/' or 'refs/tags/'"],
+  [/[^\x20-\x7e]/, "must only contain printable ASCII characters"],
+  [/[\s"'`#?&;\\|^*[\](){}<>=+!,$@%]/, "must not contain whitespace or Git-reserved characters"],
+];
+
+function checkBranch(value: string): string | null {
+  for (const [pattern, message] of BRANCH_RULES) {
+    if (pattern.test(value)) {
+      return message;
+    }
+  }
+  return null;
+}
+
+const branchField = z
+  .string()
+  .min(1, "must not be empty")
+  .superRefine((value, context) => {
+    const message = checkBranch(value);
+    if (message) {
+      context.addIssue({ code: "custom", message });
+    }
+  });
+
 const addSchema = z.strictObject({
   add: z.strictObject({
     path: pathField,
@@ -103,12 +138,15 @@ const operationSchema = z.union([
 
 export const definitionSchema = z.strictObject({
   writeMode: z.enum(["directCommit", "pullRequest"]).default("directCommit"),
-  /** Branch to commit to in `directCommit` mode. Defaults to each repository's default branch. */
-  branch: z.string().min(1).nullable().default(null),
+  /**
+   * Target branch: read from and committed to in `directCommit` mode, merged into in `pullRequest`
+   * mode. Defaults to each repository's default branch when omitted.
+   */
+  branch: branchField.nullable().default(null),
   commitMessage: z.string().min(1, "must not be empty").default("Apply bulk changes"),
   pullRequest: z
     .strictObject({
-      branchName: z.string().min(1, "must not be empty").default("bulk-changes"),
+      branchName: branchField.default("bulk-changes"),
       title: z.string().min(1, "must not be empty").default("Apply bulk changes"),
       description: z.string().default(""),
       draft: z.boolean().default(false),
@@ -221,12 +259,6 @@ type RawOperationLike = z.infer<typeof operationSchema>;
 
 function extraSemanticIssues(raw: RawDefinition): string[] {
   const issues: string[] = [];
-
-  if (raw.writeMode === "pullRequest" && raw.branch !== null) {
-    issues.push(
-      "`branch` can only be set together with `writeMode: directCommit`; pull requests always target the default branch.",
-    );
-  }
 
   raw.operations.forEach((operation, index) => {
     if ("addContent" in operation) {

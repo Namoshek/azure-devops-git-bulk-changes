@@ -19,11 +19,14 @@ import { getErrorMessage } from "../utils/errorUtils";
 
 const ZERO_OBJECT_ID = "0000000000000000000000000000000000000000";
 
-/** Branch a definition operates on for a given repository. */
+/**
+ * Branch a definition operates on for a given repository.
+ *
+ * In `directCommit` mode this is both the branch that is read and the branch that is committed to;
+ * in `pullRequest` mode it is the base branch the pull request merges into. `null` falls back to
+ * each repository's default branch.
+ */
 export function branchFor(definition: BulkChangeDefinition, target: RepoTarget): string {
-  if (definition.writeMode === "pullRequest") {
-    return target.defaultBranch;
-  }
   return definition.branch ?? target.defaultBranch;
 }
 

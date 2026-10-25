@@ -93,8 +93,9 @@ export interface BulkChangeDefinition {
   operations: BulkOperation[];
   writeMode: WriteMode;
   /**
-   * Explicit branch to operate on. `null` means "use each repository's default branch".
-   * Only meaningful for `directCommit`; pull requests always target the default branch.
+   * Target branch to operate on. `null` means "use each repository's default branch".
+   * For `directCommit` the repository is read from and committed to this branch;
+   * for `pullRequest` it is the base branch the pull request is merged into.
    */
   branch: string | null;
   commitMessage: string;

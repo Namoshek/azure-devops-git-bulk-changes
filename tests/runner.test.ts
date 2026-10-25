@@ -129,9 +129,15 @@ operations:
 `;
 
 describe("branchFor", () => {
-  it("uses the default branch in pull-request mode even when a branch is set", () => {
+  it("uses the default branch in pull-request mode when no branch is set", () => {
     const definition = definitionOf(PR_MODE);
     expect(branchFor(definition, repo("A"))).toBe("refs/heads/main");
+  });
+
+  it("uses the explicit branch as the pull-request base", () => {
+    const definition = definitionOf(`${PR_MODE}
+branch: release/1.0`);
+    expect(branchFor(definition, repo("A"))).toBe("release/1.0");
   });
 
   it("uses the default branch in direct mode when no branch is given", () => {
@@ -292,6 +298,22 @@ describe("applyRepos", () => {
       isDraft: false,
       autoMerge: true,
     });
+  });
+
+  it("opens the pull request into an explicit base branch", async () => {
+    const { access, pushes, pullRequests } = createStub({
+      files: { a: {} },
+      branches: { "a:release/1.0": "release-tip" },
+    });
+    const definition = definitionOf(`${PR_MODE}
+branch: release/1.0`);
+    const plans = await previewRepos(access, definition, [repo("A", "a")]);
+    const results = await applyRepos(access, definition, plans);
+
+    expect(results[0].status).toBe("pr-created");
+    expect(results[0].message).toContain("into release/1.0");
+    expect(pushes[0].push.commits[0].parents).toEqual(["release-tip"]);
+    expect(pullRequests[0].request.targetRefName).toBe("refs/heads/release/1.0");
   });
 
   it("fails clearly when the pull-request source branch already exists", async () => {
