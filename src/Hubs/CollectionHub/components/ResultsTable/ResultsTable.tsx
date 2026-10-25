@@ -39,6 +39,23 @@ function resultLinkText(result: ApplyResult): string {
   return result.pullRequestId ? `Pull request !${result.pullRequestId}` : `Commit ${result.commitId?.slice(0, 8)}`;
 }
 
+function projectUrlFromRepositoryUrl(repositoryUrl?: string): string | undefined {
+  if (!repositoryUrl) return undefined;
+
+  try {
+    const url = new URL(repositoryUrl);
+    const gitPathIndex = url.pathname.lastIndexOf("/_git/");
+    if (gitPathIndex < 0) return undefined;
+
+    url.pathname = url.pathname.slice(0, gitPathIndex);
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 function hasDetails(plan: RepoPlan): boolean {
   return plan.opResults.length > 0 || plan.diffs.length > 0 || plan.warnings.length > 0;
 }
@@ -57,20 +74,41 @@ export function ResultsTable({ plans, results, interactive, onShowDetails }: Res
       readonly: true,
       columnLayout: TableColumnLayout.twoLine,
       columnStyle: TableColumnStyle.Primary,
-      renderCell: (_row, columnIndex, tableColumn, plan, ariaRowIndex) => (
-        <TwoLineCell
-          columnIndex={columnIndex}
-          tableColumn={tableColumn}
-          ariaRowIndex={ariaRowIndex}
-          tableCellClassName="bolt-table-cell-primary"
-          line1={<EllipsisText>{plan.target.repositoryName}</EllipsisText>}
-          line2={
-            <EllipsisText className="secondary-text monospaced-s">
-              {plan.target.projectName} · {plan.branch}
-            </EllipsisText>
-          }
-        />
-      ),
+      renderCell: (_row, columnIndex, tableColumn, plan, ariaRowIndex) => {
+        const repositoryUrl = plan.target.webUrl;
+        const projectUrl = projectUrlFromRepositoryUrl(repositoryUrl);
+        return (
+          <TwoLineCell
+            columnIndex={columnIndex}
+            tableColumn={tableColumn}
+            ariaRowIndex={ariaRowIndex}
+            tableCellClassName="bolt-table-cell-primary"
+            line1={
+              <EllipsisText>
+                {repositoryUrl ? (
+                  <a href={repositoryUrl} target="_blank" rel="noreferrer">
+                    {plan.target.repositoryName}
+                  </a>
+                ) : (
+                  plan.target.repositoryName
+                )}
+              </EllipsisText>
+            }
+            line2={
+              <EllipsisText className="secondary-text monospaced-s">
+                {projectUrl ? (
+                  <a href={projectUrl} target="_blank" rel="noreferrer">
+                    {plan.target.projectName}
+                  </a>
+                ) : (
+                  plan.target.projectName
+                )}{" "}
+                · {plan.branch}
+              </EllipsisText>
+            }
+          />
+        );
+      },
     },
     {
       id: "status",
