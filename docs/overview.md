@@ -20,7 +20,7 @@ The extension adds a page to the collection settings that lets any user of the o
 | `applyPatch` | Apply a unified Git patch across one or more text files.                             |
 | `delete`     | Remove a file, or a whole directory with `recursive: true`; can ignore missing ones. |
 | `rename`     | Rename or move a file (content is carried over).                                     |
-| `replace`    | Change file content with a literal string or a regex.                                |
+| `replace`    | Replace literal text by default. With `useRegex: true`, `find` is a JavaScript regex, `$1` or `$<name>` in `replace` reference capture groups, and all matches are replaced (`g` is added automatically). |
 
 Paths are exact and case-sensitive, so a definition always says precisely which files it touches; listing a directory expands to the files inside it. Patch paths are read from their headers and must stay inside the repository. Binary patches, file-mode changes, and hunks that do not match the current file content are rejected. A file that cannot be read as text (binary, too large) is skipped with a reason instead of being mangled.
 

@@ -50,6 +50,21 @@ operations:
 
 The extension provides a few example definitions as a starting point. Adding additional operations is straightforward and can be done by using the buttons below the editor.
 
+### Regex replacements
+
+By default, `replace` treats `find` as a literal string. Set `useRegex: true` to use a JavaScript regular expression. The engine replaces every match (the global flag `g` is added automatically). In the replacement string, `$1` and `$2` refer to numbered capture groups, `$<name>` refers to a named group, and `$&` inserts the complete match.
+
+```yaml
+- replace:
+    path: /azure-pipelines.yml
+    find: 'pool=(?<name>\w+)'
+    replace: 'pool[$<name>]'
+    useRegex: true
+    flags: i
+```
+
+For example, `POOL=linux` becomes `pool[linux]`.
+
 ## Getting started
 
 ### 1. Install the extension
