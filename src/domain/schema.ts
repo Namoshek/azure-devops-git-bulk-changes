@@ -137,6 +137,8 @@ export interface ParseFailure {
   ok: false;
   /** Human-readable, one per issue, ordered by position in the document. */
   issues: string[];
+  /** How many `operations` entries the raw document had, so the editor can still count them. */
+  operationCount: number;
 }
 
 export type ParseResult = ParseSuccess | ParseFailure;
@@ -261,15 +263,19 @@ export function parseDefinition(yamlText: string): ParseResult {
   try {
     parsed = parseYaml(yamlText, { maxAliasCount: 100 });
   } catch (err) {
-    return { ok: false, issues: [`The document is not valid YAML: ${String(err)}`] };
+    return { ok: false, operationCount: 0, issues: [`The document is not valid YAML: ${String(err)}`] };
   }
 
   if (parsed === null || parsed === undefined) {
-    return { ok: false, issues: ["The document is empty."] };
+    return { ok: false, operationCount: 0, issues: ["The document is empty."] };
   }
   if (typeof parsed !== "object" || Array.isArray(parsed)) {
-    return { ok: false, issues: ["The document must be a mapping with an `operations` list."] };
+    return { ok: false, operationCount: 0, issues: ["The document must be a mapping with an `operations` list."] };
   }
+
+  // Count the raw operations even when the document is invalid, so the editor can report "N operation(s)".
+  const rawOperations = (parsed as { operations?: unknown }).operations;
+  const operationCount = Array.isArray(rawOperations) ? rawOperations.length : 0;
 
   const result = definitionSchema.safeParse(parsed);
   if (!result.success) {
@@ -278,12 +284,12 @@ export function parseDefinition(yamlText: string): ParseResult {
       const message = issue.message || "invalid value";
       return `${location}: ${message}`;
     });
-    return { ok: false, issues };
+    return { ok: false, operationCount, issues };
   }
 
   const semanticIssues = extraSemanticIssues(result.data);
   if (semanticIssues.length) {
-    return { ok: false, issues: semanticIssues };
+    return { ok: false, operationCount, issues: semanticIssues };
   }
 
   const raw = result.data;

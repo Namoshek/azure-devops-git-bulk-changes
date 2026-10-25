@@ -1,8 +1,17 @@
 .bc-validation {
   margin-top: 12px;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
 }
 
-.bc-validation-issues {
-  margin-bottom: 0;
-  padding-left: 18px;
+/* The status icon is deliberately bare text flow, so it must not shrink with the message. */
+.bc-validation-icon-success {
+  color: var(--component-status-success, rgba(85, 163, 98, 1));
+}
+
+.bc-validation-icon-error {
+  color: var(--component-status-error, rgba(205, 74, 69, 1));
 }
