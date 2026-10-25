@@ -95,7 +95,7 @@ describe("VirtualWorkspace", () => {
     ]);
   });
 
-  it("emits a rename plus an edit when the content changed too", () => {
+  it("emits a rename plus an edit when the renamed file content changes", () => {
     const base = [file("/a.txt", "old")];
     const ws = VirtualWorkspace.fromBaseFiles(base);
     ws.rename("/a.txt", "/b.txt");
@@ -641,7 +641,7 @@ describe("planRepository", () => {
     expect(plan.desired).toEqual([{ kind: "add", path: "/config.yml", content: "pool: Self\n" }]);
   });
 
-  it("applies rename-then-replace as one rename plus one edit", () => {
+  it("applies rename-then-replace as a rename plus an edit", () => {
     const { plan } = planOf(
       `operations:
   - rename:
@@ -670,6 +670,31 @@ describe("planRepository", () => {
     expect(plan.diffs[0].originalPath).toBe("/settings.json");
     expect(plan.diffs[0].diff).toContain("rename from settings.json");
     expect(plan.diffs[0].diff).toContain("rename to config.json");
+  });
+
+  it("pushes a rename-with-hunks Git patch as one change for the destination", () => {
+    const { plan } = planOf(
+      `operations:
+  - applyPatch:
+      patch: |-
+        diff --git a/Old.cs b/New.cs
+        similarity index 90%
+        rename from Old.cs
+        rename to New.cs
+        --- a/Old.cs
+        +++ b/New.cs
+        @@ -1 +1 @@
+        -old
+        +new
+`,
+      [file("/Old.cs", "old\n")],
+    );
+
+    expect(plan.status).toBe("would-change");
+    expect(planToPushChanges(plan.desired)).toEqual([
+      { changeType: "add", item: { path: "/New.cs" }, newContent: { content: "new\n", contentType: "rawtext" } },
+      { changeType: "delete", item: { path: "/Old.cs" } },
+    ]);
   });
 
   it("skips nothing but reports no-change for an empty repository with only missing-source skips", () => {
@@ -837,12 +862,14 @@ describe("planToPushChanges", () => {
     ]);
   });
 
-  it("emits a rename before the edit of the renamed path", () => {
+  it("writes a content-changing rename as an add and delete", () => {
     const changes = planToPushChanges([
       { kind: "rename", from: "/a.txt", to: "/b.txt", content: "new", baseObjectId: "sha" },
       { kind: "edit", path: "/b.txt", content: "new", baseObjectId: "sha" },
     ]);
-    expect(changes.map((c) => c.changeType)).toEqual(["rename", "edit"]);
-    expect(changes[1].item.path).toBe("/b.txt");
+    expect(changes).toEqual([
+      { changeType: "add", item: { path: "/b.txt" }, newContent: { content: "new", contentType: "rawtext" } },
+      { changeType: "delete", item: { path: "/a.txt" } },
+    ]);
   });
 });

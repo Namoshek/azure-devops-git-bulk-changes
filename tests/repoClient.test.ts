@@ -16,9 +16,12 @@ jest.mock("azure-devops-extension-api/Core/Core", () => ({}));
 import { getClient } from "azure-devops-extension-api/Common/Client";
 import * as SDK from "azure-devops-extension-sdk";
 import { RepoTarget } from "../src/domain/types";
+import type { PushRequest } from "../src/domain/repoAccess";
 import { createRepoAccess } from "../src/infrastructure/repoClient";
 
 const client = {
+  createPush: jest.fn(),
+  getBranch: jest.fn(),
   createPullRequest: jest.fn(),
   updatePullRequest: jest.fn(),
 };
@@ -96,5 +99,51 @@ describe("createPullRequest", () => {
     });
 
     expect(client.updatePullRequest).not.toHaveBeenCalled();
+  });
+});
+
+describe("pushChanges", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (getClient as jest.Mock).mockReturnValue(client);
+    client.createPush.mockResolvedValue({
+      commits: [{ commitId: "new-commit" }],
+      refUpdates: [{ newObjectId: "new-commit" }],
+    });
+  });
+
+  it("passes the target commit as the parent when creating a source branch", async () => {
+    const push: PushRequest = {
+      refUpdates: [{ name: "refs/heads/improvements", oldObjectId: "0000000000000000000000000000000000000000" }],
+      commits: [{ comment: "Create PR branch", parents: ["target-commit"], changes: [] }],
+    };
+
+    await expect(createRepoAccess().pushChanges(target, push)).resolves.toEqual({
+      commitId: "new-commit",
+      newObjectId: "new-commit",
+    });
+    expect(client.createPush).toHaveBeenCalledWith(
+      {
+        refUpdates: push.refUpdates,
+        commits: [{ comment: "Create PR branch", parents: ["target-commit"], changes: [] }],
+      },
+      target.repositoryId,
+      target.projectName,
+    );
+  });
+});
+
+describe("getBranchCommit", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (getClient as jest.Mock).mockReturnValue(client);
+  });
+
+  it("normalizes the server branch-not-found message", async () => {
+    client.getBranch.mockRejectedValueOnce(new Error('Branch "improvements" does not exist in the repository.'));
+
+    await expect(createRepoAccess().getBranchCommit(target, "improvements")).rejects.toMatchObject({
+      code: "branch_missing",
+    });
   });
 });

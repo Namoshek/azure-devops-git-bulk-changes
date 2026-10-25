@@ -10,7 +10,7 @@ export interface PushChange {
 
 export interface PushRequest {
   refUpdates: { name: string; oldObjectId: string }[];
-  commits: { comment: string; changes: PushChange[] }[];
+  commits: { comment: string; parents?: string[]; changes: PushChange[] }[];
 }
 
 export interface PushResult {

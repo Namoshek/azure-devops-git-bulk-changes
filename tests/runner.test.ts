@@ -26,6 +26,7 @@ function repo(name: string, repositoryId = name.toLowerCase()): RepoTarget {
 interface StubOptions {
   files?: Record<string, Record<string, string>>;
   commits?: Record<string, string>;
+  branches?: Record<string, string>;
   binaryPaths?: string[];
   /** Repository ids where reading the branch fails. */
   unreadable?: string[];
@@ -41,9 +42,18 @@ function createStub(options: StubOptions = {}) {
   const reads: string[] = [];
 
   const access: RepoAccess = {
-    async getBranchCommit(target) {
+    async getBranchCommit(target, branch) {
       if (options.unreadable?.includes(target.repositoryId)) {
         throw new BulkChangeError("no_access", `No access to ${target.repositoryName}.`);
+      }
+      const branchName = branch.replace(/^refs\/heads\//, "");
+      const defaultBranch = target.defaultBranch.replace(/^refs\/heads\//, "");
+      if (branchName !== defaultBranch) {
+        const existingTip = options.branches?.[`${target.repositoryId}:${branchName}`];
+        if (existingTip) {
+          return existingTip;
+        }
+        throw new BulkChangeError("branch_missing", `Branch ${branch} does not exist in ${target.repositoryName}.`);
       }
       return options.commits?.[target.repositoryId] ?? `commit-${target.repositoryId}`;
     },
@@ -270,7 +280,10 @@ describe("applyRepos", () => {
     expect(results[0].status).toBe("pr-created");
     expect(results[0].pullRequestId).toBe(101);
     expect(results[0].link).toBe("https://dev.example/Project/_git/A/pullrequest/101");
-    expect(pushes[0].push.refUpdates).toEqual([{ name: "refs/heads/add-license", oldObjectId: "commit-a" }]);
+    expect(pushes[0].push.refUpdates).toEqual([
+      { name: "refs/heads/add-license", oldObjectId: "0000000000000000000000000000000000000000" },
+    ]);
+    expect(pushes[0].push.commits[0].parents).toEqual(["commit-a"]);
     expect(pullRequests[0].request).toEqual({
       sourceRefName: "refs/heads/add-license",
       targetRefName: "refs/heads/main",
@@ -279,6 +292,21 @@ describe("applyRepos", () => {
       isDraft: false,
       autoMerge: true,
     });
+  });
+
+  it("fails clearly when the pull-request source branch already exists", async () => {
+    const { access, pushes, pullRequests } = createStub({
+      files: { a: {} },
+      branches: { "a:add-license": "existing-source-tip" },
+    });
+    const definition = definitionOf(PR_MODE);
+    const plans = await previewRepos(access, definition, [repo("A", "a")]);
+    const results = await applyRepos(access, definition, plans);
+
+    expect(results[0].status).toBe("failed");
+    expect(results[0].message).toContain("already exists");
+    expect(pushes).toHaveLength(0);
+    expect(pullRequests).toHaveLength(0);
   });
 
   it("retains the created pull request link when auto-complete setup fails", async () => {

@@ -3,6 +3,7 @@ import {
   ApplyResult,
   ApplyStatus,
   BulkChangeDefinition,
+  BulkChangeError,
   EngineLimits,
   PlanStatus,
   RepoPlan,
@@ -15,6 +16,8 @@ import { buildRefUpdate, planToPushChanges, refName } from "./pushChanges";
 import { RepoAccess } from "../domain/repoAccess";
 import { mapWithConcurrency } from "../utils/concurrency";
 import { getErrorMessage } from "../utils/errorUtils";
+
+const ZERO_OBJECT_ID = "0000000000000000000000000000000000000000";
 
 /** Branch a definition operates on for a given repository. */
 export function branchFor(definition: BulkChangeDefinition, target: RepoTarget): string {
@@ -164,9 +167,25 @@ export async function applyRepos(
         };
       } else {
         const sourceBranch = definition.pullRequest.branchName.trim() || "bulk-changes";
+        let sourceBranchExists = false;
+        try {
+          await access.getBranchCommit(target, sourceBranch);
+          sourceBranchExists = true;
+        } catch (err) {
+          if (!(err instanceof BulkChangeError) || err.code !== "branch_missing") {
+            throw err;
+          }
+        }
+        if (sourceBranchExists) {
+          throw new BulkChangeError(
+            "pull_request_branch_exists",
+            `Pull request source branch ${refName(sourceBranch)} already exists in ${target.repositoryName}; choose a different pullRequest.branchName.`,
+          );
+        }
+
         const push = await access.pushChanges(target, {
-          refUpdates: [buildRefUpdate(sourceBranch, baseCommit)],
-          commits: [{ comment: commitMessage, changes }],
+          refUpdates: [buildRefUpdate(sourceBranch, ZERO_OBJECT_ID)],
+          commits: [{ comment: commitMessage, parents: [baseCommit], changes }],
         });
 
         const pullRequest = await access.createPullRequest(target, {

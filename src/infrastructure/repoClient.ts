@@ -51,6 +51,15 @@ function isNotFoundError(err: unknown): boolean {
   return typeof err === "object" && err !== null && (err as { status?: number }).status === 404;
 }
 
+function isBranchMissingError(err: unknown, branch: string): boolean {
+  if (isNotFoundError(err)) {
+    return true;
+  }
+  const message = serverMessage(err, "").toLowerCase();
+  const branchName = shortBranchName(branch).toLowerCase();
+  return message.includes(branchName) && /\bbranch\b.*\b(?:does not exist|not found)\b/.test(message);
+}
+
 /** The caller has no permission for the repository, or it does not exist. */
 function isAccessError(err: unknown): boolean {
   const status = (err as { status?: number } | null)?.status;
@@ -247,7 +256,7 @@ export function createRepoAccess(options: RepoClientOptions = {}): RepoAccess {
         }
         return commit;
       } catch (err) {
-        if (isNotFoundError(err)) {
+        if (isBranchMissingError(err, branch)) {
           throw new BulkChangeError("branch_missing", `Branch ${branch} does not exist in ${target.repositoryName}.`);
         }
         if (isAccessError(err)) {
@@ -307,6 +316,7 @@ export function createRepoAccess(options: RepoClientOptions = {}): RepoAccess {
         refUpdates: push.refUpdates,
         commits: push.commits.map((commit) => ({
           comment: commit.comment,
+          parents: commit.parents,
           changes: commit.changes.map((change) => ({
             changeType: toChangeType(change.changeType),
             item: { path: change.item.path },

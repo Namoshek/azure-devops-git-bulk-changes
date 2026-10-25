@@ -136,8 +136,8 @@ export class VirtualWorkspace {
    * Compare the workspace against the base commit and return the push changes.
    *
    * Files whose content and path are unchanged produce nothing, which makes re-running an idempotent
-   * definition a no-op. A rename whose content also changed is emitted as a rename followed by an edit
-   * of the new path, matching the order required by a single push.
+   * definition a no-op. A rename with changed content is emitted as a rename and edit so the push
+   * mapper can choose an API-compatible representation.
    */
   public describeChanges(baseFiles: BaseFile[]): DesiredChange[] {
     const baseByPath = new Map<string, BaseFile>();

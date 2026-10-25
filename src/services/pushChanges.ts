@@ -25,11 +25,13 @@ function rawContent(content: string): { content: string; contentType: "rawtext" 
 /**
  * Translate planned changes into the `changes` array of a single push commit.
  *
- * Ordering matters: renames must be applied before an edit of the renamed path, and deletions last, so
- * a definition that renames and then edits the same file works in one push.
+ * A content-changing rename is emitted as an add at the new path and a delete at the old path. This
+ * avoids sending content on a rename, which some Azure DevOps Server versions reject. Pure moves remain
+ * rename changes, and deletions are emitted last.
  */
 export function planToPushChanges(desired: DesiredChange[]): PushChange[] {
-  const renames: PushChange[] = [];
+  const renames = new Map<string, PushChange>();
+  const renameSources = new Map<string, string>();
   const content: PushChange[] = [];
   const deletions: PushChange[] = [];
   /** Last write wins when an operation sequence touches the same path twice. */
@@ -54,16 +56,28 @@ export function planToPushChanges(desired: DesiredChange[]): PushChange[] {
       case "delete":
         byPath.set(change.path, { changeType: "delete", item: { path: change.path } });
         break;
-      case "rename":
-        renames.push({ changeType: "rename", sourceServerItem: change.from, item: { path: change.to } });
-        if (change.content !== null) {
-          byPath.set(change.to, {
-            changeType: "edit",
-            item: { path: change.to },
-            newContent: rawContent(change.content),
-          });
-        }
+      case "rename": {
+        renames.set(change.to, {
+          changeType: "rename",
+          sourceServerItem: change.from,
+          item: { path: change.to },
+        });
+        renameSources.set(change.to, change.from);
         break;
+      }
+    }
+  }
+
+  for (const [path, sourcePath] of renameSources) {
+    const edit = byPath.get(path);
+    if (edit?.changeType === "edit") {
+      renames.delete(path);
+      byPath.set(path, {
+        changeType: "add",
+        item: { path },
+        newContent: edit.newContent,
+      });
+      byPath.set(sourcePath, { changeType: "delete", item: { path: sourcePath } });
     }
   }
 
@@ -75,5 +89,5 @@ export function planToPushChanges(desired: DesiredChange[]): PushChange[] {
     }
   }
 
-  return [...renames, ...content, ...deletions];
+  return [...renames.values(), ...content, ...deletions];
 }
