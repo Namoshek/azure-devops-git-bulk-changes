@@ -3,6 +3,8 @@ jest.mock("azure-devops-extension-api/Common/Client", () => ({
 }));
 jest.mock("azure-devops-extension-sdk", () => ({
   getUser: jest.fn(),
+  getAccessToken: jest.fn(),
+  getService: jest.fn(),
 }));
 jest.mock("azure-devops-extension-api/Git/GitClient", () => ({
   GitRestClient: class GitRestClient {},
@@ -17,7 +19,7 @@ import { getClient } from "azure-devops-extension-api/Common/Client";
 import * as SDK from "azure-devops-extension-sdk";
 import { RepoTarget } from "../src/domain/types";
 import type { PushRequest } from "../src/domain/repoAccess";
-import { createRepoAccess } from "../src/infrastructure/repoClient";
+import { createRepoAccess, listWritableRepositoryIds } from "../src/infrastructure/repoClient";
 
 const client = {
   createPush: jest.fn(),
@@ -145,5 +147,61 @@ describe("getBranchCommit", () => {
     await expect(createRepoAccess().getBranchCommit(target, "improvements")).rejects.toMatchObject({
       code: "branch_missing",
     });
+  });
+});
+
+describe("listWritableRepositoryIds", () => {
+  const repositories = [
+    { projectId: "project-a", repositoryId: "repo-a" },
+    { projectId: "project-a", repositoryId: "repo-b" },
+  ];
+  const originalFetch = globalThis.fetch;
+  let fetchMock = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (getClient as jest.Mock).mockReturnValue(client);
+    (SDK.getAccessToken as jest.Mock).mockReturnValue("access-token");
+    (SDK.getService as jest.Mock).mockReturnValue({
+      getServiceLocation: jest.fn(async () => "https://contoso.com/Org/"),
+    });
+    fetchMock = jest.fn();
+    globalThis.fetch = fetchMock;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("posts Contribute evaluations per repository and returns only the allowed ids", async () => {
+    fetchMock.mockReturnValue({ ok: true, json: () => ({ evaluations: [{ value: true }, { value: false }] }) });
+
+    const writable = await listWritableRepositoryIds(repositories);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toEqual("https://contoso.com/Org/_apis/security/permissionevaluationbatch?api-version=7.0");
+    expect(JSON.parse((options as { body: string }).body)).toEqual({
+      alwaysAllowAdministrators: true,
+      evaluations: [
+        {
+          securityNamespaceId: "2e9eb7ed-3c0a-47d4-87c1-0ffdd275fd87",
+          token: "repoV2/project-a/repo-a",
+          permissions: 4,
+        },
+        {
+          securityNamespaceId: "2e9eb7ed-3c0a-47d4-87c1-0ffdd275fd87",
+          token: "repoV2/project-a/repo-b",
+          permissions: 4,
+        },
+      ],
+    });
+    expect([...(writable ?? [])]).toEqual(["repo-a"]);
+  });
+
+  it("fails open when the security endpoint rejects the request", async () => {
+    fetchMock.mockReturnValue({ ok: false, status: 401, json: () => ({}) });
+
+    await expect(listWritableRepositoryIds(repositories)).resolves.toEqual(null as Set<string> | null);
   });
 });

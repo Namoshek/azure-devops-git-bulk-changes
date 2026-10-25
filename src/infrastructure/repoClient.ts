@@ -2,6 +2,7 @@ import { getClient } from "azure-devops-extension-api/Common/Client";
 import * as SDK from "azure-devops-extension-sdk";
 import { GitRestClient } from "azure-devops-extension-api/Git/GitClient";
 import { CoreRestClient } from "azure-devops-extension-api/Core/CoreClient";
+import { CommonServiceIds, ILocationService } from "azure-devops-extension-api/Common/CommonServices";
 import * as Git from "azure-devops-extension-api/Git/Git";
 import * as Core from "azure-devops-extension-api/Core/Core";
 import { BaseFile, BulkChangeError, RepoTarget } from "../domain/types";
@@ -462,7 +463,8 @@ export async function listProjects(): Promise<Core.TeamProjectReference[]> {
  * Uses the stable `GET {project}/_apis/git/Repositories` contract, whose documented requirement is the
  * read-only `vso.code` scope. The newer paged variant is a preview route under a different controller
  * area and is rejected with 401 for delegated extension tokens, so it is deliberately not used.
- * The endpoint returns the repositories the caller may read, so no filtering by permission is needed.
+ * IMPORTANT: this lists what the caller may *read*, not what they may write — callers that intend to
+ * modify repositories must additionally check Contribute access with `listWritableRepositoryIds`.
  */
 export async function listRepositories(projectId: string): Promise<Git.GitRepository[]> {
   const client = gitClient();
@@ -500,4 +502,120 @@ export function toRepoTarget(repository: Git.GitRepository): RepoTarget {
     defaultBranch: repository.defaultBranch ?? "refs/heads/main",
     webUrl: repository.webUrl,
   };
+}
+
+/** Requests per `security/permissionevaluationbatch` call. */
+const PERMISSION_BATCH_SIZE = 100;
+
+/** Low fan-out for permission probes: they accompany an already busy repository listing. */
+const PERMISSION_BATCH_CONCURRENCY = 3;
+
+/**
+ * GUID of the "Source code repositories" security namespace, constant across every Azure DevOps
+ * instance (cloud and on-premises alike).
+ */
+const GIT_SECURITY_NAMESPACE = "2e9eb7ed-3c0a-47d4-87c1-0ffdd275fd87";
+
+/**
+ * Bitmask for Contribute access in the Git security namespace (GenericContribute = 4).
+ *
+ * This is the ACL flag the "Contribute" label in the Azure DevOps access-rights UI maps onto;
+ * `vso.code_write` consent is required to ask about it, and `listRepositories` alone can only ever
+ * prove read access.
+ */
+const GIT_CONTRIBUTE_PERMISSIONS = 4;
+
+interface PermissionEvaluation {
+  securityNamespaceId: string;
+  token: string;
+  permissions: number;
+  /** Only present on the response of a successful evaluation. */
+  value?: boolean;
+}
+
+/** Base URL of the current collection/organization, including any on-premises path prefix. */
+async function collectionBaseUrl(): Promise<string> {
+  const locationService = await SDK.getService<ILocationService>(CommonServiceIds.LocationService);
+  const url = await locationService.getServiceLocation();
+  return url.replace(/\/+$/, "");
+}
+
+/**
+ * Evaluates a batch of security-namespace permission checks for the signed-in user.
+ *
+ * Uses the stable `POST {collection}/_apis/security/permissionevaluationbatch` route (api-version
+ * 7.0, no preview flag), so it works on cloud *and* on-premises instances. The endpoint resolves the
+ * caller itself from the bearer token — no user-descriptor lookup is needed. Throws on any HTTP error
+ * so the caller can decide how to handle an unavailable probe.
+ */
+async function evaluatePermissionBatch(evaluations: PermissionEvaluation[]): Promise<boolean[]> {
+  const [accessToken, baseUrl] = await Promise.all([SDK.getAccessToken(), collectionBaseUrl()]);
+  if (!accessToken) {
+    throw new BulkChangeError("not_authorized", "SDK.getAccessToken() returned an empty token.");
+  }
+
+  const response = await fetch(`${baseUrl}/_apis/security/permissionevaluationbatch?api-version=7.0`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ alwaysAllowAdministrators: true, evaluations }),
+  });
+  if (!response.ok) {
+    throw new BulkChangeError("no_access", `permissionevaluationbatch returned ${response.status}.`);
+  }
+
+  const result = (await response.json()) as { evaluations?: PermissionEvaluation[] };
+  const returned = result.evaluations ?? [];
+  // Positional response: index i of `returned` answers index i of `evaluations`. A short or absent
+  // list answers "denied" — the endpoint only omits an entry when it could not evaluate it.
+  return evaluations.map((_, index) => returned[index]?.value === true);
+}
+
+/**
+ * The subset of `repositories` on which the signed-in user has Contribute (write) access.
+ *
+ * Probes one `repoV2/<project>/<repo>` token per repository against the Git security namespace with
+ * the Contribute bit, batched through `security/permissionevaluationbatch`. Returns `null` when the
+ * probe could not be completed; callers must then treat access as unknown rather than denying, so a
+ * repository is never hidden because the probe failed.
+ */
+export async function listWritableRepositoryIds(
+  repositories: { projectId: string; repositoryId: string }[],
+): Promise<Set<string> | null> {
+  const valid = repositories.filter((repository) => repository.projectId !== "" && repository.repositoryId !== "");
+  if (valid.length === 0) {
+    return new Set<string>();
+  }
+
+  const chunks: { projectId: string; repositoryId: string }[][] = [];
+  for (let start = 0; start < valid.length; start += PERMISSION_BATCH_SIZE) {
+    chunks.push(valid.slice(start, start + PERMISSION_BATCH_SIZE));
+  }
+
+  const writable = new Set<string>();
+  try {
+    const perChunk = await mapWithConcurrency(
+      chunks,
+      PERMISSION_BATCH_CONCURRENCY,
+      async (chunk: { projectId: string; repositoryId: string }[]): Promise<boolean[]> =>
+        await evaluatePermissionBatch(
+          chunk.map((repository) => ({
+            securityNamespaceId: GIT_SECURITY_NAMESPACE,
+            token: `repoV2/${repository.projectId}/${repository.repositoryId}`,
+            permissions: GIT_CONTRIBUTE_PERMISSIONS,
+          })),
+        ),
+    );
+    for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex += 1) {
+      const allowed = perChunk[chunkIndex];
+      chunks[chunkIndex].forEach((repository, index) => {
+        if (allowed[index]) {
+          writable.add(repository.repositoryId);
+        }
+      });
+    }
+  } catch {
+    // Probe unavailable (consent missing, route rejected, offline): fail open — never hide by mistake.
+    return null;
+  }
+  return writable;
 }

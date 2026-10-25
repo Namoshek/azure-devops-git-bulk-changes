@@ -12,7 +12,8 @@ export interface RepoSelectionBinding {
  * Binds the repository selection in `scope` to the dropdown's imperative selection object.
  *
  * React state is the source of truth and is pushed into the selection; user clicks are read back
- * through the selection subscription.
+ * through the selection subscription. Rows without Contribute access are marked disabled so they
+ * render greyed out and cannot be clicked into the selection.
  */
 export function useRepoSelectionSync(scope: ScopeState): RepoSelectionBinding {
   const selectionRef = useRef<DropdownMultiSelection>(new DropdownMultiSelection());
@@ -30,7 +31,8 @@ export function useRepoSelectionSync(scope: ScopeState): RepoSelectionBinding {
           id: row.target.repositoryId || `error-${row.target.projectId}-${index}`,
           text: label,
           ariaLabel: hasRepo ? label : "Repositories unavailable",
-          disabled: !hasRepo,
+          // Read-only repositories stay visible but ListBox ignores them for focus and selection.
+          disabled: !hasRepo || row.canContribute === false,
           data: row,
         };
       }),

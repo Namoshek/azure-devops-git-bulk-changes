@@ -15,7 +15,7 @@ const SpinnerBase = asComponent(Spinner);
 
 /** Which repositories the change is applied to. */
 export function ScopeCard({ scope }: { scope: ScopeState }) {
-  const selectableCount = scope.repoRows.filter((row) => row.target.repositoryId).length;
+  const selectableCount = scope.repoRows.filter((row) => row.canContribute !== false && row.target.repositoryId).length;
   const failedProjects = scope.repoRows.filter((row) => row.error);
 
   return (
