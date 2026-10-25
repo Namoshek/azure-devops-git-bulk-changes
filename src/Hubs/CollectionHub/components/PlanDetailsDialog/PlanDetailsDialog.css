@@ -1,3 +1,4 @@
 .bc-plan-details-dialog {
-  min-width: 800px;
+  min-width: min(800px, 95vw);
+  max-width: 95vw;
 }
