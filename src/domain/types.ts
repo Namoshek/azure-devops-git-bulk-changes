@@ -45,6 +45,12 @@ export interface AddContentOperation {
 export interface ApplyPatchOperation {
   kind: "applyPatch";
   patch: string;
+  /**
+   * When true, file patches that cannot apply to this repository (missing source path, hunks that
+   * do not match, taken destination) are skipped instead of failing the whole operation. The
+   * operation still fails when no file patch applies at all, so nothing would be changed.
+   */
+  allowPartial: boolean;
 }
 
 export interface DeleteOperation {

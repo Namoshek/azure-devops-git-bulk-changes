@@ -97,6 +97,7 @@ const gitPatchField = z
 const applyPatchSchema = z.strictObject({
   applyPatch: z.strictObject({
     patch: gitPatchField,
+    allowPartial: z.boolean().default(false),
   }),
 });
 
@@ -239,7 +240,7 @@ function normalizeOperation(raw: RawOperationLike): BulkOperation {
   }
   if ("applyPatch" in raw) {
     const op = raw.applyPatch;
-    const operation: ApplyPatchOperation = { kind: "applyPatch", patch: op.patch };
+    const operation: ApplyPatchOperation = { kind: "applyPatch", patch: op.patch, allowPartial: op.allowPartial };
     return operation;
   }
   const op = raw.replace;

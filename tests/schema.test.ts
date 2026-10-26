@@ -133,6 +133,28 @@ operations:
     expect(operation.kind).toBe("applyPatch");
     if (operation.kind === "applyPatch") {
       expect(operation.patch).toContain("diff --git a/README.md b/README.md");
+      expect(operation.allowPartial).toBe(false);
+    }
+  });
+
+  it("accepts the allowPartial flag on a Git patch operation", () => {
+    const definition = valid(`
+operations:
+  - applyPatch:
+      allowPartial: true
+      patch: |
+        diff --git a/README.md b/README.md
+        --- a/README.md
+        +++ b/README.md
+        @@ -1 +1 @@
+        -old
+        +new
+`);
+    const operation = definition.operations[0];
+    if (operation.kind === "applyPatch") {
+      expect(operation.allowPartial).toBe(true);
+    } else {
+      throw new Error("expected an applyPatch operation");
     }
   });
 

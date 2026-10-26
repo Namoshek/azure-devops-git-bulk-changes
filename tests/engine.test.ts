@@ -175,7 +175,7 @@ new file mode 100644
 +added
 `;
     const ws = VirtualWorkspace.fromBaseFiles([file("/README.md", "old\n")]);
-    const result = applyOperation(ws, { kind: "applyPatch", patch }, 0, context);
+    const result = applyOperation(ws, { kind: "applyPatch", patch, allowPartial: false }, 0, context);
 
     expect(result.severity).toBe("applied");
     expect(ws.get("/README.md")?.content).toBe("new\n");
@@ -198,9 +198,34 @@ diff --git a/config.txt b/config.txt
 `;
     const ws = VirtualWorkspace.fromBaseFiles([file("/README.md", "old\n"), file("/config.txt", "current\n")]);
 
-    expect(() => applyOperation(ws, { kind: "applyPatch", patch }, 0, context)).toThrow(/do not match/);
+    expect(() => applyOperation(ws, { kind: "applyPatch", patch, allowPartial: false }, 0, context)).toThrow(
+      /do not match/,
+    );
     expect(ws.get("/README.md")?.content).toBe("old\n");
     expect(ws.get("/config.txt")?.content).toBe("current\n");
+
+    const partialWs = VirtualWorkspace.fromBaseFiles([file("/README.md", "old\n"), file("/config.txt", "current\n")]);
+    const partial = applyOperation(partialWs, { kind: "applyPatch", patch, allowPartial: true }, 0, context);
+    expect(partial.severity).toBe("warning");
+    expect(partial.message).toContain("partially applied");
+    expect(partial.message).toContain("config.txt");
+    expect(partialWs.get("/README.md")?.content).toBe("new\n");
+    expect(partialWs.get("/config.txt")?.content).toBe("current\n");
+  });
+
+  it("skips patch files whose source is missing when allowPartial is set", () => {
+    const patch = `diff --git a/gone.txt b/gone.txt
+--- a/gone.txt
++++ b/gone.txt
+@@ -1 +1 @@
+-old
++new
+`;
+    const ws = VirtualWorkspace.fromBaseFiles([file("/other.txt", "x")]);
+    expect(() => applyOperation(ws, { kind: "applyPatch", patch, allowPartial: true }, 0, context)).toThrow(
+      /No file patch/,
+    );
+    expect(ws.get("/other.txt")?.content).toBe("x");
   });
 
   it("delete honours onFileMissing", () => {
@@ -595,20 +620,17 @@ describe("planRepository", () => {
   });
 
   it("reads a recursive delete as a whole tree and deletes every listed file", () => {
-    const listed = (path: string): BaseFile => ({
-      path,
-      content: null,
-      objectId: `sha-${path}`,
-      isBinary: false,
-      skipReason: "its content was not loaded",
-    });
     const { sourcePaths, plan } = planOf(
       `operations:
   - delete:
       path: /.vs
       recursive: true
 `,
-      [listed("/.vs/a.suo"), listed("/.vs/config/applicationhost.config"), file("/README.md", "x")],
+      [
+        file("/.vs/a.suo", "text one\ntext two\n"),
+        binaryFile("/.vs/config/applicationhost.config"),
+        file("/README.md", "x"),
+      ],
     );
 
     expect(sourcePaths).toEqual([{ kind: "tree", path: "/.vs", maxEntries: 1000 }]);
@@ -621,6 +643,16 @@ describe("planRepository", () => {
         baseObjectId: "sha-/.vs/config/applicationhost.config",
       },
     ]);
+    // The text file renders its full content as removed lines; the binary one only shows the headers.
+    const textDiff = plan.diffs.find((diff) => diff.path === "/.vs/a.suo");
+    const binaryDiff = plan.diffs.find((diff) => diff.path === "/.vs/config/applicationhost.config");
+    expect(textDiff?.diff).toContain("--- a/.vs/a.suo");
+    expect(textDiff?.diff).toContain("-text one");
+    expect(textDiff?.diff).toMatch(/^@@ -1,2 \+0,0 @@$/m);
+    expect(binaryDiff?.diff).toContain("--- a/.vs/config/applicationhost.config");
+    expect(binaryDiff?.diff?.includes("--- /dev/null")).toBe(false);
+    expect(binaryDiff?.additions).toBe(0);
+    expect(binaryDiff?.deletions).toBe(0);
   });
 
   it("applies operations in order, so add-then-replace works", () => {
@@ -758,6 +790,22 @@ describe("computeFileDiff", () => {
     expect(diff.diff).toContain("--- a/a.txt");
     expect(diff.diff).toContain("+++ /dev/null");
     expect(diff.diff).toContain("-one");
+    expect(diff.diff).toMatch(/^@@ -1,1 \+0,0 @@$/m);
+  });
+
+  it("keeps the source header for a delete whose content was never loaded", () => {
+    const diff = computeFileDiff({
+      path: "/deep/nested.bin",
+      originalPath: "/deep/nested.bin",
+      originalContent: null,
+      newContent: null,
+      maxDiffLines: 100,
+    });
+    expect(diff.additions).toBe(0);
+    expect(diff.deletions).toBe(0);
+    expect(diff.diff).toContain("--- a/deep/nested.bin");
+    expect(diff.diff).toContain("+++ /dev/null");
+    expect(diff.diff.includes("--- /dev/null")).toBe(false);
   });
 
   it("renders context, additions and deletions with hunk headers", () => {
@@ -826,7 +874,9 @@ describe("computeFileDiff", () => {
     expect(diff.diff).not.toContain("@@");
 
     const workspace = VirtualWorkspace.fromBaseFiles([file("/old.txt", "same\n")]);
-    const result = applyOperation(workspace, { kind: "applyPatch", patch: diff.diff }, 0, { limits: DEFAULT_LIMITS });
+    const result = applyOperation(workspace, { kind: "applyPatch", patch: diff.diff, allowPartial: false }, 0, {
+      limits: DEFAULT_LIMITS,
+    });
     expect(result.severity).toBe("applied");
     expect(workspace.get("/old.txt")).toBeUndefined();
     expect(workspace.get("/new.txt")?.content).toBe("same\n");

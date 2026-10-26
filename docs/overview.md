@@ -17,12 +17,12 @@ The extension adds a page to the collection settings that lets any user of the o
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `add`        | Create a file; optionally only when it is missing.                                                                                                                                                        |
 | `addContent` | Insert text at the `start`, the `end` or a `lineNumber` of an existing file.                                                                                                                              |
-| `applyPatch` | Apply a unified Git patch across one or more text files.                                                                                                                                                  |
+| `applyPatch` | Apply a unified Git patch across one or more text files. With `allowPartial: true`, files the patch cannot apply to are skipped; the operation only fails when no file would change. |
 | `delete`     | Remove a file, or a whole directory with `recursive: true`; can ignore missing ones.                                                                                                                      |
 | `rename`     | Rename or move a file (content is carried over).                                                                                                                                                          |
 | `replace`    | Replace literal text by default. With `useRegex: true`, `find` is a JavaScript regex, `$1` or `$<name>` in `replace` reference capture groups, and all matches are replaced (`g` is added automatically). |
 
-Paths are exact and case-sensitive, so a definition always says precisely which files it touches; listing a directory expands to the files inside it. Patch paths are read from their headers and must stay inside the repository. Binary patches, file-mode changes, and hunks that do not match the current file content are rejected. A file that cannot be read as text (binary, too large) is skipped with a reason instead of being mangled.
+Paths are exact and case-sensitive, so a definition always says precisely which files it touches; listing a directory expands to the files inside it. Patch paths are read from their headers and must stay inside the repository. Binary patches and file-mode changes are always rejected; with `applyPatch.allowPartial: true`, hunks that do not match the current file content only skip that file, and the operation fails only when every file of the patch would be skipped (zero actual changes). A file that cannot be read as text (binary, too large) is skipped with a reason instead of being mangled.
 
 ### Write modes
 

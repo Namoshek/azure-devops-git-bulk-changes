@@ -15,10 +15,19 @@ interface ParsedGitPatch {
 }
 
 interface StagedPatch extends ParsedGitPatch {
+  skipped: false;
   content: string;
   originalContent: string | null;
   renameCollisions: string[];
 }
+
+interface SkippedPatch {
+  skipped: true;
+  path: string;
+  reason: string;
+}
+
+type PatchOutcome = StagedPatch | SkippedPatch;
 
 function invalidPatch(message: string): never {
   throw new BulkChangeError("invalid_git_patch", message);
@@ -113,11 +122,17 @@ export function applyGitPatch(
   limits: EngineLimits,
 ): OpResult {
   const patches = parseGitPatch(operation.patch);
-  const staged: StagedPatch[] = patches.map((filePatch) => {
+  const partial = operation.allowPartial;
+
+  // Each file patch either stages successfully, is skipped (partial mode only), or aborts the operation.
+  const outcomes: PatchOutcome[] = patches.map((filePatch): PatchOutcome => {
     const { oldPath, newPath } = filePatch;
     const source = oldPath ? workspace.get(oldPath) : undefined;
 
     if (oldPath && !source) {
+      if (partial) {
+        return { skipped: true, path: oldPath, reason: "source file does not exist in this repository" };
+      }
       return invalidPatch(`Patch source "${oldPath}" does not exist in this repository.`);
     }
     if (source?.content === null) {
@@ -126,12 +141,22 @@ export function applyGitPatch(
       );
     }
     if (newPath && newPath !== oldPath && workspace.has(newPath)) {
+      if (partial) {
+        return { skipped: true, path: newPath, reason: "destination already exists in this repository" };
+      }
       return invalidPatch(`Patch destination "${newPath}" already exists in this repository.`);
     }
 
     const originalContent = source?.content ?? null;
     const content = applyUnifiedPatch(source?.content ?? "", filePatch.patch, { fuzzFactor: 0 });
     if (content === false) {
+      if (partial) {
+        return {
+          skipped: true,
+          path: oldPath ?? newPath ?? "patch",
+          reason: "hunks do not match the current file content",
+        };
+      }
       return invalidPatch(`Patch hunks for "${oldPath ?? newPath}" do not match the current file content.`);
     }
     if (newPath && content.length > limits.maxFileChars) {
@@ -142,12 +167,24 @@ export function applyGitPatch(
 
     return {
       ...filePatch,
+      skipped: false,
       content,
       originalContent,
-      renameCollisions:
-        filePatch.isRename && newPath ? workspace.caseInsensitiveCollisions(newPath) : [],
+      renameCollisions: filePatch.isRename && newPath ? workspace.caseInsensitiveCollisions(newPath) : [],
     };
   });
+
+  const staged = outcomes.filter((outcome) => !outcome.skipped) as StagedPatch[];
+  const skipped = outcomes.filter((outcome) => outcome.skipped) as SkippedPatch[];
+
+  if (staged.length === 0) {
+    const detail = skipped.map((skip) => `${skip.path} (${skip.reason})`).join("; ");
+    return invalidPatch(
+      partial
+        ? `No file patch of this Git patch can be applied: ${detail}.`
+        : "The Git patch cannot be applied to this repository: no file patch matches.",
+    );
+  }
 
   for (const filePatch of staged) {
     if (filePatch.newPath === null) {
@@ -162,11 +199,24 @@ export function applyGitPatch(
 
   const changed = staged.some(
     (filePatch) =>
-      filePatch.oldPath !== filePatch.newPath ||
-      filePatch.isCopy ||
-      filePatch.originalContent !== filePatch.content,
+      filePatch.oldPath !== filePatch.newPath || filePatch.isCopy || filePatch.originalContent !== filePatch.content,
   );
   const renameCollisions = [...new Set(staged.flatMap((filePatch) => filePatch.renameCollisions))];
+  // A single-file patch names its file; a multi-file patch has no one path to show, so leave the
+  // path blank and let the per-file diffs carry the names.
+  const resultPath = staged.length === 1 ? (staged[0].newPath ?? staged[0].oldPath ?? "patch") : "";
+
+  if (skipped.length) {
+    const detail = skipped.map((skip) => `${skip.path} (${skip.reason})`).join("; ");
+    return {
+      index,
+      kind: "applyPatch",
+      path: resultPath,
+      severity: "warning",
+      message: `Patch partially applied: ${staged.length} of ${patches.length} file(s) would change; skipped ${detail}.`,
+    };
+  }
+
   const message = changed
     ? `Patch would update ${staged.length} file(s).`
     : "The patch already matches the repository; no changes would be made.";
@@ -174,8 +224,10 @@ export function applyGitPatch(
   return {
     index,
     kind: "applyPatch",
-    path: staged[0].newPath ?? staged[0].oldPath ?? "patch",
+    path: resultPath,
     severity: renameCollisions.length ? "warning" : changed ? "applied" : "noop",
-    message: renameCollisions.length ? `${message} Case-insensitive path collision: ${renameCollisions.join(", ")}.` : message,
+    message: renameCollisions.length
+      ? `${message} Case-insensitive path collision: ${renameCollisions.join(", ")}.`
+      : message,
   };
 }

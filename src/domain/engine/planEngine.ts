@@ -259,8 +259,10 @@ function summarize(status: RepoPlan["status"], opResults: OpResult[], warnings: 
   if (status === "skipped") {
     return warnings[0] ?? "Skipped: none of the targeted files could be processed.";
   }
-  const applied = opResults.filter((r) => r.severity === "applied").length;
-  return `${applied} operation(s) would change this repository.`;
+  // Warning-severity operations still change the repository (a partially applied patch reports a
+  // warning), so they count toward "would change" alongside plain applied ones.
+  const changed = opResults.filter((r) => r.severity === "applied" || r.severity === "warning").length;
+  return `${changed} operation(s) would change this repository.`;
 }
 
 /**
