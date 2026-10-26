@@ -21,6 +21,8 @@ preview can you apply the changes.
 3. **Preview.** The preview is a read-only dry run. Each repository is read, the operations are applied in memory, and you get a per-repository status with the exact unified diff and a specific reason for anything skipped or failed. Diffs are computed locally and never sent to Azure DevOps.
 4. **Apply.** Only after reviewing the preview and accepting the changes, they are written to the repositories. If any repository cannot be updated, it is skipped with a reason, and the rest continue independently.
 
+If you want to learn more about the inner workings, read about the [architecture and design](docs/architecture.md) of the extension.
+
 ### Example definition
 
 ```yaml
