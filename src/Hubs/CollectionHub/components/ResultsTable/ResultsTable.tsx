@@ -130,12 +130,14 @@ export function ResultsTable({ plans, results, interactive, onShowDetails }: Res
     },
     {
       id: "files",
-      name: "Files",
-      width: 70,
+      name: "Affected Files",
+      width: 100,
       readonly: true,
       renderCell: (_row, columnIndex, tableColumn, plan, ariaRowIndex) => (
         <SimpleCell columnIndex={columnIndex} tableColumn={tableColumn} ariaRowIndex={ariaRowIndex}>
-          <span className="monospaced-s">{plan.desired.length || plan.diffs.length || "-"}</span>
+          {/* Affected files, not raw change operations: a rename-with-edit emits two desired changes
+              for one file, and each diff is one file — matching the details dialog's diff list. */}
+          <span className="monospaced-s">{plan.diffs.length || "-"}</span>
         </SimpleCell>
       ),
     },

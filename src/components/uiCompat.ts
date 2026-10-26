@@ -14,6 +14,7 @@ import { SimpleTableCell, Table, TwoLineTableCell } from "azure-devops-ui/Compon
 import { ITableColumn, ITableProps } from "azure-devops-ui/Components/Table/Table.Props";
 import { MenuButton } from "azure-devops-ui/Menu";
 import { ITooltipProps, Tooltip } from "azure-devops-ui/TooltipEx";
+import { Tab, Tabs } from "azure-devops-ui/Tabs";
 
 /**
  * azure-devops-ui components are typed against the React version they declare as a peer dependency
@@ -38,6 +39,8 @@ export const MessageCardBase = asComponent(MessageCard);
 export const PageBase = asComponent(Page);
 export const ProgressBarBase = asComponent(ProgressBar);
 export const StatusBase = asComponent(Status);
+export const TabBase = asComponent(Tab);
+export const TabsBase = asComponent(Tabs);
 export const TooltipBase = Tooltip as unknown as React.ComponentType<ITooltipProps>;
 
 // Generic classes need a generic function-component cast so the row type stays checked.

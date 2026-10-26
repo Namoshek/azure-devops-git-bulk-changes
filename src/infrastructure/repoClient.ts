@@ -185,9 +185,11 @@ async function readDirectoryEntries(
 }
 
 /**
- * Every file below `path` (at any depth), listed without content.
+ * Every file below `path` (at any depth), read with their content where possible.
  *
  * A listing larger than `limit` is rejected: a recursive delete must never act on a partial listing.
+ * Content is loaded so the preview can show exactly what a recursive delete removes; files that
+ * cannot be read as text (binary, oversized) stay content-less and render as header-only diffs.
  */
 async function readTreeFiles(
   client: GitRestClient,
@@ -195,6 +197,7 @@ async function readTreeFiles(
   commit: string,
   path: string,
   limit: number,
+  maxFileChars: number,
 ): Promise<BaseFile[]> {
   try {
     const items = await client.getItems(
@@ -210,21 +213,19 @@ async function readTreeFiles(
     );
 
     const prefix = path === "/" ? "/" : `${path}/`;
-    const files = items.filter((item) => !item.isFolder && (item.path === path || item.path.startsWith(prefix)));
-    if (files.length > limit) {
+    const found = items.filter((item) => !item.isFolder && (item.path === path || item.path.startsWith(prefix)));
+    if (found.length > limit) {
       throw new BulkChangeError(
         "tree_too_large",
         `${path} contains more than ${limit} files in ${target.repositoryName}; refusing to delete it.`,
       );
     }
 
-    return files.map((item) => ({
-      path: item.path,
-      content: null,
-      objectId: item.objectId ?? null,
-      isBinary: false,
-      skipReason: "its content was not loaded",
-    }));
+    // Reuse the single-path reader: it flags binary and oversized files with their skip reasons.
+    const read = await mapWithConcurrency(found, READ_CONCURRENCY, async (item) =>
+      readItem(client, target, commit, item.path, maxFileChars),
+    );
+    return read.flatMap((file) => (file ? [file] : []));
   } catch (err) {
     if (isNotFoundError(err)) {
       return [];
@@ -287,18 +288,23 @@ export function createRepoAccess(options: RepoClientOptions = {}): RepoAccess {
         }
       }
 
-      const treePaths = sourcePaths.filter((source) => source.kind === "tree");
-      const trees = await mapWithConcurrency(treePaths, 4, async (source) =>
-        readTreeFiles(client, target, commit, source.path, source.maxEntries ?? DEFAULT_TREE_SCAN_LIMIT),
+      const treeSources = sourcePaths.filter((source) => source.kind === "tree");
+      const trees = await mapWithConcurrency(treeSources, 4, async (source) =>
+        readTreeFiles(client, target, commit, source.path, source.maxEntries ?? DEFAULT_TREE_SCAN_LIMIT, maxFileChars),
+      );
+      const treeFiles = trees.flat();
+
+      // Tree reads now load content themselves, so literal paths already covered by a tree are not
+      // fetched a second time.
+      const treeRead = new Set(treeFiles.map((file) => file.path));
+      const files = await mapWithConcurrency(
+        [...wanted].filter((path) => !treeRead.has(path)),
+        READ_CONCURRENCY,
+        async (path) => readItem(client, target, commit, path, maxFileChars),
       );
 
-      const files = await mapWithConcurrency([...wanted], READ_CONCURRENCY, async (path) =>
-        readItem(client, target, commit, path, maxFileChars),
-      );
-
-      // Files read with their content win over the content-less tree listing of the same path.
       const byPath = new Map<string, BaseFile>();
-      for (const file of trees.flat()) {
+      for (const file of treeFiles) {
         byPath.set(file.path, file);
       }
       for (const file of files) {

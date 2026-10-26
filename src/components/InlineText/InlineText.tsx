@@ -1,7 +1,7 @@
 import React from "react";
 import "./InlineText.css";
 
-export type TextTone = "muted" | "error" | "warning";
+export type TextTone = "muted" | "info" | "error" | "warning";
 
 interface InlineTextProps {
   tone: TextTone;

@@ -188,8 +188,13 @@ export function computeFileDiff(request: DiffRequest): FileDiff {
 
   const body: string[] = [...header];
   const oldSide = oldPath !== null && oldPath !== newPath ? oldPath : newPath;
-  body.push(`--- ${request.originalContent === null ? "/dev/null" : `a/${stripSlash(oldSide)}`}`);
+  // A side is /dev/null only when the file is new (no original path) — not when its content merely
+  // was not loaded (recursive deletes read tree files without content).
+  body.push(`--- ${oldPath === null ? "/dev/null" : `a/${stripSlash(oldSide)}`}`);
   body.push(`+++ ${request.newContent === null ? "/dev/null" : `b/${stripSlash(newPath)}`}`);
+
+  // Git numbers a zero-length side as `0,0`, not `1,0`; a full deletion renders `@@ -1,N +0,0 @@`.
+  const hunkRange = (start: number, count: number) => (count === 0 ? "0,0" : `${start + 1},${count}`);
 
   let omittedHunks = 0;
   for (const hunk of hunks) {
@@ -198,7 +203,7 @@ export function computeFileDiff(request: DiffRequest): FileDiff {
       omittedHunks += 1;
       continue;
     }
-    body.push(`@@ -${hunk.aStart + 1},${hunk.aCount} +${hunk.bStart + 1},${hunk.bCount} @@`);
+    body.push(`@@ -${hunkRange(hunk.aStart, hunk.aCount)} +${hunkRange(hunk.bStart, hunk.bCount)} @@`);
     body.push(...hunk.lines);
   }
 

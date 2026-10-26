@@ -1,6 +1,5 @@
 import React from "react";
 import { FileDiff } from "../../../../domain/types";
-import { InlineText } from "../../../../components/InlineText/InlineText";
 import "./DiffView.css";
 
 function lineClass(line: string): string {
@@ -29,11 +28,13 @@ export function DiffView({ diff }: { diff: FileDiff }) {
     <div className="bc-diff-view">
       <div className="bc-diff-path text-ellipsis">
         {pathLabel}{" "}
-        <InlineText tone="muted" monospace>
-          +{diff.additions} / -{diff.deletions}
-        </InlineText>
+        <span className="monospaced-s">
+          <span className="bc-diff-additions">+{diff.additions}</span>
+          <span className="bc-diff-separator"> / </span>
+          <span className="bc-diff-deletions">-{diff.deletions}</span>
+        </span>
       </div>
-      <pre className="bc-diff" aria-label={`Diff for ${pathLabel}`}>
+      <pre className="bc-diff custom-scrollbar" aria-label={`Diff for ${pathLabel}`}>
         {diff.diff.split("\n").map((line, index) => (
           <span key={index} className={lineClass(line)}>
             {line === "" ? " " : line}

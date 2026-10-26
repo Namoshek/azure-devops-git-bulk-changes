@@ -1,4 +1,8 @@
 .bc-plan-details-dialog {
-  min-width: min(800px, 95vw);
-  max-width: 95vw;
+  width: 95vw;
+}
+
+/* The tab strip separating the summary table from the file-change diffs. */
+.bc-plan-tabs {
+  border-bottom: 1px solid var(--palette-black-alpha-10);
 }

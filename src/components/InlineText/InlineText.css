@@ -2,6 +2,10 @@
   color: var(--text-secondary-color, rgba(0, 0, 0, 0.55));
 }
 
+.bc-inline-text--info {
+  color: var(--status-info-foreground, rgba(97, 168, 255, 1));
+}
+
 .bc-inline-text--error {
   color: var(--status-error-text, rgba(218, 10, 0, 1));
 }

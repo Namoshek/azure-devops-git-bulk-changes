@@ -8,6 +8,19 @@
   font-weight: 600;
 }
 
+/* Colour-coded change counts above the diff, matching the add/remove line colours. */
+.bc-diff-additions {
+  color: var(--component-status-success, rgba(85, 163, 98, 1));
+}
+
+.bc-diff-deletions {
+  color: var(--component-status-error, rgba(205, 74, 69, 1));
+}
+
+.bc-diff-separator {
+  color: var(--text-secondary-color, rgba(0, 0, 0, 0.55));
+}
+
 .bc-diff {
   margin: 0;
   padding: 8px 0;
