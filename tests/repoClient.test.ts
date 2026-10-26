@@ -1,25 +1,26 @@
-jest.mock("azure-devops-extension-api/Common/Client", () => ({
+jest.mock("azure-devops-extension-api/Common", () => ({
   getClient: jest.fn(),
+  CommonServiceIds: { LocationService: "LocationService" },
 }));
 jest.mock("azure-devops-extension-sdk", () => ({
   getUser: jest.fn(),
   getAccessToken: jest.fn(),
   getService: jest.fn(),
 }));
-jest.mock("azure-devops-extension-api/Git/GitClient", () => ({
+jest.mock("azure-devops-extension-api/Git", () => ({
   GitRestClient: class GitRestClient {},
 }));
-jest.mock("azure-devops-extension-api/Core/CoreClient", () => ({
+jest.mock("azure-devops-extension-api/Core", () => ({
   CoreRestClient: class CoreRestClient {},
 }));
-jest.mock("azure-devops-extension-api/Git/Git", () => ({}));
-jest.mock("azure-devops-extension-api/Core/Core", () => ({}));
+jest.mock("azure-devops-extension-api/Git", () => ({}));
+jest.mock("azure-devops-extension-api/Core", () => ({}));
 
-import { getClient } from "azure-devops-extension-api/Common/Client";
 import * as SDK from "azure-devops-extension-sdk";
 import { RepoTarget } from "../src/domain/types";
 import type { PushRequest } from "../src/domain/repoAccess";
 import { createRepoAccess, listWritableRepositoryIds } from "../src/infrastructure/repoClient";
+import { getClient } from "azure-devops-extension-api/Common";
 
 const client = {
   createPush: jest.fn(),

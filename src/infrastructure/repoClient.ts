@@ -1,10 +1,10 @@
-import { getClient } from "azure-devops-extension-api/Common/Client";
+import { getClient } from "azure-devops-extension-api/Common";
 import * as SDK from "azure-devops-extension-sdk";
-import { GitRestClient } from "azure-devops-extension-api/Git/GitClient";
-import { CoreRestClient } from "azure-devops-extension-api/Core/CoreClient";
-import { CommonServiceIds, ILocationService } from "azure-devops-extension-api/Common/CommonServices";
-import * as Git from "azure-devops-extension-api/Git/Git";
-import * as Core from "azure-devops-extension-api/Core/Core";
+import { GitRestClient } from "azure-devops-extension-api/Git";
+import { CoreRestClient } from "azure-devops-extension-api/Core";
+import { CommonServiceIds, ILocationService } from "azure-devops-extension-api/Common";
+import * as Git from "azure-devops-extension-api/Git";
+import * as Core from "azure-devops-extension-api/Core";
 import { BaseFile, BulkChangeError, RepoTarget } from "../domain/types";
 import { PullRequestRequest, PullRequestResult, PushRequest, PushResult, RepoAccess } from "../domain/repoAccess";
 import { DEFAULT_DIRECTORY_SCAN_LIMIT, DEFAULT_TREE_SCAN_LIMIT } from "../domain/engine/planEngine";

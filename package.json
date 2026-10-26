@@ -19,8 +19,8 @@
     "create-dev-cert": "dotnet dev-certs https --trust && dotnet dev-certs https --export-path dev.crt -np --format pem"
   },
   "dependencies": {
-    "azure-devops-extension-api": "^4.270.0",
-    "azure-devops-extension-sdk": "^4.2.0",
+    "azure-devops-extension-api": "^5.279.1",
+    "azure-devops-extension-sdk": "^5.0.0",
     "azure-devops-ui": "^2.278.0",
     "diff": "^9.0.0",
     "monaco-editor": "^0.57.0",
@@ -30,6 +30,9 @@
     "zod": "^4.5.2"
   },
   "overrides": {
+    "azure-devops-extension-api": {
+      "azure-devops-extension-sdk": "$azure-devops-extension-sdk"
+    },
     "azure-devops-ui": {
       "react": "$react",
       "react-dom": "$react-dom"
@@ -61,10 +64,10 @@
     "rimraf": "^6.1.3",
     "style-loader": "^4.0.0",
     "tfx-cli": "^0.24.0",
-    "ts-jest": "^29.4.12",
+    "ts-jest": "^29.4.15",
     "ts-loader": "^9.6.2",
     "typescript": "^6.0.2",
-    "typescript-eslint": "^8.68.0",
+    "typescript-eslint": "^8.72.1",
     "webpack": "^5.110.1",
     "webpack-cli": "^7.2.3",
     "webpack-dev-server": "^6.0.0"
