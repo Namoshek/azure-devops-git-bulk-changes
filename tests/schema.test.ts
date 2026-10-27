@@ -96,6 +96,8 @@ operations:
     expect(definition.operations[0]).toEqual({
       kind: "delete",
       path: "/old.txt",
+      pathPattern: null,
+      patternNoMatch: "skip",
       recursive: false,
       onFileMissing: "skip",
     });
@@ -108,6 +110,8 @@ operations:
     expect(definition.operations[2]).toEqual({
       kind: "replace",
       path: "/azure-pipelines.yml",
+      pathPattern: null,
+      patternNoMatch: "skip",
       find: "pool: Azure",
       replace: "pool: Self",
       useRegex: true,
@@ -200,6 +204,8 @@ operations:
     expect(definition.operations[0]).toEqual({
       kind: "addContent",
       path: "/README.md",
+      pathPattern: null,
+      patternNoMatch: "skip",
       content: "credits",
       position: "end",
       lineNumber: null,
@@ -243,6 +249,8 @@ operations:
     expect(definition.operations[0]).toEqual({
       kind: "delete",
       path: "/.vs",
+      pathPattern: null,
+      patternNoMatch: "skip",
       recursive: true,
       onFileMissing: "error",
     });
@@ -297,6 +305,117 @@ glob: "**/*.ts"
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.issues.join(" ")).toContain("at least one operation");
+    }
+  });
+
+  it("accepts pathPattern and normalizes the pattern field", () => {
+    const definition = valid(`
+  operations:
+  - replace:
+      pathPattern: "/src/**/*.ts"
+      find: "pool: Azure"
+      replace: "pool: Self"
+      patternNoMatch: error
+`);
+    const operation = definition.operations[0];
+    expect(operation.kind).toBe("replace");
+    if (operation.kind === "replace") {
+      expect(operation.path).toBeNull();
+      expect(operation.pathPattern).toBe("/src/**/*.ts");
+      expect(operation.patternNoMatch).toBe("error");
+    }
+  });
+
+  it("defaults patternNoMatch to skip", () => {
+    const definition = valid(`
+  operations:
+  - delete:
+      pathPattern: "/docs/*.md"
+`);
+    const operation = definition.operations[0];
+    if (operation.kind === "delete") {
+      expect(operation.patternNoMatch).toBe("skip");
+    }
+  });
+
+  it("rejects wildcard metacharacters in an exact path", () => {
+    const result = parseDefinition(`
+  operations:
+  - replace:
+      path: /src/*.ts
+      find: a
+      replace: b
+`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.join(" ")).toContain("use pathPattern");
+    }
+  });
+
+  it("rejects a pathPattern without a wildcard", () => {
+    const result = parseDefinition(`
+  operations:
+  - delete:
+      pathPattern: /src/exact.ts
+`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.join(" ")).toContain("must use a wildcard");
+    }
+  });
+
+  it("rejects an operation that gives both path and pathPattern", () => {
+    const result = parseDefinition(`
+  operations:
+  - replace:
+      path: /a.ts
+      pathPattern: "/src/*.ts"
+      find: a
+      replace: b
+`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.join(" ")).toContain("exactly one of");
+    }
+  });
+
+  it("rejects recursive together with pathPattern", () => {
+    const result = parseDefinition(`
+  operations:
+  - delete:
+      pathPattern: "/src/*.ts"
+      recursive: true
+`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.join(" ")).toContain("'recursive' is not supported");
+    }
+  });
+
+  it("keeps add on exact paths only", () => {
+    const result = parseDefinition(`
+  operations:
+  - add:
+      path: /src/*.ts
+      content: "x"
+`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.join(" ")).toContain("use pathPattern");
+    }
+  });
+
+  it("rejects an unbalanced bracket in a pattern", () => {
+    const result = parseDefinition(`
+  operations:
+  - replace:
+      pathPattern: "/src/[a-z.ts"
+      find: a
+      replace: b
+`);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.join(" ")).toContain("operations[0].replace.pathPattern");
     }
   });
 

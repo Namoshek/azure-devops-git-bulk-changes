@@ -2,6 +2,7 @@ import {
   BaseFile,
   BulkChangeDefinition,
   BulkOperation,
+  BulkChangeError,
   DEFAULT_LIMITS,
   RepoSnapshot,
   RepoTarget,
@@ -521,6 +522,120 @@ diff --git a/config.txt b/config.txt
     expect(() => applyOperation(ws, bad, 0, context)).toThrow(/regular expression/);
     expect(applyOperation(ws, { ...bad, onNoMatch: "skip" }, 1, context).severity).toBe("noop");
   });
+
+  it("fans a pattern operation out into a single result carrying the matched paths", () => {
+    const ws = VirtualWorkspace.fromBaseFiles([
+      file("/src/a.ts", "pool: Azure"),
+      file("/src/deep/b.ts", "pool: Azure"),
+      file("/README.md", "pool: Azure"),
+    ]);
+    const result = applyOperation(
+      ws,
+      {
+        kind: "replace",
+        path: null,
+        pathPattern: "/src/**/*.ts",
+        find: "pool: Azure",
+        replace: "pool: Self",
+        useRegex: false,
+        flags: "",
+        onNoMatch: "error",
+      },
+      0,
+      context,
+    );
+    expect(result.severity).toBe("applied");
+    expect(result.path).toBe("/src/**/*.ts");
+    expect(result.matchedPaths).toEqual(["/src/a.ts", "/src/deep/b.ts"]);
+    expect(result.message).toContain("matched 2 file(s)");
+    expect(result.message).toContain("2 would change");
+    expect(ws.get("/src/a.ts")?.content).toBe("pool: Self");
+    expect(ws.get("/README.md")?.content).toBe("pool: Azure");
+  });
+
+  it("reports a fan-out as one error row when any matched file cannot be processed", () => {
+    const ws = VirtualWorkspace.fromBaseFiles([file("/src/a.ts", "x"), file("/src/b.ts", "unrelated")]);
+    const result = applyOperation(
+      ws,
+      {
+        kind: "replace",
+        path: null,
+        pathPattern: "/src/*.ts",
+        find: "x",
+        replace: "y",
+        useRegex: false,
+        flags: "",
+        onNoMatch: "error",
+      },
+      0,
+      context,
+    );
+    expect(result.severity).toBe("error");
+    expect(result.matchedPaths).toEqual(["/src/a.ts", "/src/b.ts"]);
+    expect(result.message).toContain("1 could not be processed");
+  });
+
+  it("treats a fan-out where every file is already satisfied as a no-op", () => {
+    const ws = VirtualWorkspace.fromBaseFiles([file("/src/a.ts", "pool: Self"), file("/src/b.ts", "pool: Self")]);
+    const result = applyOperation(
+      ws,
+      {
+        kind: "replace",
+        path: null,
+        pathPattern: "/src/*.ts",
+        find: "pool: Azure",
+        replace: "pool: Self",
+        useRegex: false,
+        flags: "",
+        onNoMatch: "skip",
+      },
+      0,
+      context,
+    );
+    expect(result.severity).toBe("noop");
+    expect(result.message).toContain("every one is already satisfied");
+  });
+
+  it("reports a zero-match pattern as a no-op or throws per patternNoMatch", () => {
+    const ws = VirtualWorkspace.fromBaseFiles([file("/README.md", "x")]);
+    const op = {
+      kind: "replace" as const,
+      path: null as string | null,
+      pathPattern: "/src/*.ts",
+      find: "x",
+      replace: "y",
+      useRegex: false,
+      flags: "",
+      onNoMatch: "error" as const,
+    };
+    const skipped = applyOperation(ws, { ...op, patternNoMatch: "skip" as const }, 0, context);
+    expect(skipped.severity).toBe("noop");
+    expect(skipped.message).toContain("matches no file");
+    expect(skipped.matchedPaths).toEqual([]);
+    expect(() => applyOperation(ws, { ...op, patternNoMatch: "error" as const }, 1, context)).toThrow(BulkChangeError);
+  });
+
+  it("refuses a fan-out over the match cap instead of changing part of the files", () => {
+    const ws = VirtualWorkspace.fromBaseFiles([file("/src/a.ts", "x"), file("/src/b.ts", "x"), file("/src/c.ts", "x")]);
+    expect(() =>
+      applyOperation(
+        ws,
+        {
+          kind: "replace",
+          path: null,
+          pathPattern: "/src/*.ts",
+          find: "x",
+          replace: "y",
+          useRegex: false,
+          flags: "",
+          onNoMatch: "error",
+        },
+        0,
+        { limits: { ...DEFAULT_LIMITS, maxMatchedFiles: 2 } },
+      ),
+    ).toThrow(/above the 2 limit/);
+    expect(ws.get("/src/a.ts")?.content).toBe("x");
+  });
 });
 
 describe("planRepository", () => {
@@ -653,6 +768,109 @@ describe("planRepository", () => {
     expect(binaryDiff?.diff?.includes("--- /dev/null")).toBe(false);
     expect(binaryDiff?.additions).toBe(0);
     expect(binaryDiff?.deletions).toBe(0);
+  });
+
+  it("collects a pathPattern as a single pattern source instead of a literal path", () => {
+    const { sourcePaths } = planOf(
+      `operations:
+  - replace:
+      pathPattern: "/src/**/*.ts"
+      find: "pool: Azure"
+      replace: "pool: Self"
+`,
+      [],
+    );
+
+    expect(sourcePaths).toEqual([{ kind: "pattern", path: "/src/**/*.ts", maxEntries: 500 }]);
+  });
+
+  it("plans a pattern fan-out as one row with matched paths and one diff per matched file", () => {
+    const { plan } = planOf(
+      `operations:
+  - replace:
+      pathPattern: "/src/**/*.ts"
+      find: "pool: Azure"
+      replace: "pool: Self"
+`,
+      [file("/src/a.ts", "pool: Azure"), file("/src/deep/b.ts", "pool: Azure"), file("/README.md", "other")],
+    );
+
+    expect(plan.status).toBe("would-change");
+    expect(plan.opResults).toHaveLength(1);
+    expect(plan.opResults[0].path).toBe("/src/**/*.ts");
+    expect(plan.opResults[0].matchedPaths).toEqual(["/src/a.ts", "/src/deep/b.ts"]);
+    expect(plan.desired).toHaveLength(2);
+    expect(plan.diffs).toHaveLength(2);
+    expect(plan.diffs.map((diff) => diff.path)).toEqual(["/src/a.ts", "/src/deep/b.ts"]);
+  });
+
+  it("composes a fan-out with earlier operations, so a created file is matched too", () => {
+    const { plan } = planOf(
+      `operations:
+  - add:
+      path: /src/new.ts
+      content: "pool: Azure"
+  - replace:
+      pathPattern: "/src/*.ts"
+      find: "pool: Azure"
+      replace: "pool: Self"
+`,
+      [file("/src/old.ts", "pool: Azure")],
+    );
+
+    expect(plan.status).toBe("would-change");
+    expect(plan.opResults[1].matchedPaths).toEqual(["/src/new.ts", "/src/old.ts"]);
+    // The created file was matched by the later pattern, so it collapses to one add plus one edit for the old file.
+    expect(plan.desired).toEqual([
+      { kind: "add", path: "/src/new.ts", content: "pool: Self" },
+      { kind: "edit", path: "/src/old.ts", content: "pool: Self", baseObjectId: "sha-/src/old.ts" },
+    ]);
+  });
+
+  it("keeps a zero-match pattern a no-op by default and errors the repository when set to error", () => {
+    const { plan: skipped } = planOf(
+      `operations:
+  - delete:
+      pathPattern: "/docs/*.md"
+`,
+      [file("/README.md", "x")],
+    );
+    expect(skipped.status).toBe("no-change");
+    expect(skipped.desired).toEqual([]);
+    expect(skipped.opResults[0].severity).toBe("noop");
+
+    const { plan: failed } = planOf(
+      `operations:
+  - delete:
+      pathPattern: "/docs/*.md"
+      patternNoMatch: error
+`,
+      [file("/README.md", "x")],
+    );
+    expect(failed.status).toBe("error");
+    expect(failed.desired).toEqual([]);
+    expect(failed.message).toContain("matches no file");
+  });
+
+  it("refuses the repository when a pattern matches more than the cap", () => {
+    const { plan } = planRepository(
+      target,
+      definitionOf(
+        `operations:
+  - delete:
+      pathPattern: "/src/*.ts"
+`,
+      ),
+      snapshotOf("base-sha", [file("/src/a.ts", "x"), file("/src/b.ts", "x"), file("/src/c.ts", "x")]),
+      "refs/heads/main",
+      { limits: { ...DEFAULT_LIMITS, maxMatchedFiles: 2 } },
+    );
+
+    expect(plan.status).toBe("error");
+    expect(plan.desired).toEqual([]);
+    expect(plan.diffs).toEqual([]);
+    expect(plan.message).toContain("above the 2 limit");
+    expect(plan.opResults[0].path).toBe("/src/*.ts");
   });
 
   it("applies operations in order, so add-then-replace works", () => {

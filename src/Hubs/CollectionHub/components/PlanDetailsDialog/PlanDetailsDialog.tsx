@@ -29,6 +29,11 @@ const SEVERITY_LABEL: Record<OpSeverity, string> = {
 const OPERATIONS_TAB = "operations";
 const CHANGES_TAB = "changes";
 
+// A pattern-fan-out operation can touch hundreds of files, so the diff tab renders a generous leading
+// slice instead of stopping at the first dozen; the cap only guards against pathological plans, and the
+// tab badge plus the operation row still carry the exact counts when it truncates.
+const MAX_DIFFS_SHOWN = 300;
+
 /**
  * Per-repository details shown in a dialog. Opening them below the table would push the rest of the
  * results out of view, so they live in a modal instead. The operations and the file diffs are presented as
@@ -125,8 +130,14 @@ export function PlanDetailsDialog({ plan, onDismiss }: { plan: RepoPlan; onDismi
             />
           ) : null
         ) : (
-          plan.diffs.map((diff, index) => <DiffView key={`${diff.path}-${index}`} diff={diff} />)
+          plan.diffs
+            .slice(0, MAX_DIFFS_SHOWN)
+            .map((diff, index) => <DiffView key={`${diff.path}-${index}`} diff={diff} />)
         )}
+
+        {selectedTab === CHANGES_TAB && plan.diffs.length > MAX_DIFFS_SHOWN ? (
+          <InlineText tone="muted">{`${plan.diffs.length - MAX_DIFFS_SHOWN} more file changes are part of this plan but not rendered.`}</InlineText>
+        ) : null}
 
         {extraWarnings.map((warning, index) => (
           <InlineText key={index} tone="warning">

@@ -65,7 +65,7 @@ The API endpoints that are used by the extension:
    - Used for the target branch, and as an existence check for a pull-request source branch.
 
 1. **Read repository content at a commit:** `GET /{project}/_apis/git/repositories/{repo}/items?path={path}` ([docs](https://learn.microsoft.com/en-us/rest/api/azure/devops/git/items/get-items-batch?view=azure-devops-rest-7.1&tabs=HTTP))
-   - Three usages: a single file with content, a one-level directory listing, and a full recursive listing (content omitted) for recursive deletes.
+   - Four usages: a single file with content, a one-level directory listing, a full recursive listing (content omitted) for recursive deletes, and the same recursive listing scoped to a pattern's literal prefix for `pathPattern` matching.
 
 1. **Create a push:** `POST /{project}/_apis/git/repositories/{repo}/pushes` ([docs](https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pushes/create?view=azure-devops-rest-7.1&tabs=HTTP))
    - The single write primitive behind both modes: ref update plus one commit carrying the change list.

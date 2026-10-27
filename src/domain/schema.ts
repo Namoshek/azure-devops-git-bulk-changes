@@ -11,10 +11,11 @@ import {
   MissingFileBehavior,
   MissingSourceBehavior,
   NoMatchBehavior,
+  PatternMatchBehavior,
   RenameOperation,
   ReplaceOperation,
 } from "./types";
-import { tryNormalizeGitPath } from "./engine/pathUtils";
+import { compilePathPattern, isPathPattern, tryNormalizeGitPath } from "./engine/pathUtils";
 import { parseGitPatch } from "./engine/gitPatch";
 
 const VALID_FLAGS = /^[igmusvy]*$/;
@@ -22,7 +23,18 @@ const VALID_FLAGS = /^[igmusvy]*$/;
 const pathField = z
   .string()
   .min(1, "must be a non-empty path")
-  .refine((value) => tryNormalizeGitPath(value) !== null, "must be a repository-root-relative path without '..'");
+  .refine((value) => tryNormalizeGitPath(value) !== null, "must be a repository-root-relative path without '..'")
+  .refine(
+    (value) => !isPathPattern(value),
+    "path must name one exact file; use pathPattern for wildcard matching",
+  );
+
+/** A glob-style path pattern. It must carry a wildcard so it can never masquerade as a literal path. */
+const patternField = z
+  .string()
+  .min(1, "must be a non-empty pattern")
+  .refine((value) => tryNormalizeGitPath(value) !== null, "must be a repository-root-relative pattern without '..'")
+  .refine((value) => isPathPattern(value), "must use a wildcard (*, ? or [..]) — use path for an exact file");
 
 const flagsField = z.string().refine((value) => VALID_FLAGS.test(value), "may only contain the flags i, m, s, u, v, y");
 
@@ -71,12 +83,18 @@ const addSchema = z.strictObject({
 
 const addContentSchema = z.strictObject({
   addContent: z.strictObject({
-    path: pathField,
+    path: pathField.nullable().default(null),
+    pathPattern: patternField.nullable().default(null),
     content: z.string(),
     position: z.enum(["start", "end", "lineNumber"]).default("end"),
     lineNumber: z.number().int().min(1, "must be 1 or greater").nullable().default(null),
     skipIfPresent: z.boolean().default(true),
     onFileMissing: z.enum(["error", "skip", "createIfMissing"]).default("error"),
+    patternNoMatch: z.enum(["error", "skip"]).default("skip"),
+  }).superRefine((op, context) => {
+    if ((op.path === null) === (op.pathPattern === null)) {
+      context.addIssue({ code: "custom", message: "must give exactly one of 'path' or 'pathPattern'" });
+    }
   }),
 });
 
@@ -103,9 +121,21 @@ const applyPatchSchema = z.strictObject({
 
 const deleteSchema = z.strictObject({
   delete: z.strictObject({
-    path: pathField,
+    path: pathField.nullable().default(null),
+    pathPattern: patternField.nullable().default(null),
     recursive: z.boolean().default(false),
     onFileMissing: z.enum(["error", "skip"]).default("error"),
+    patternNoMatch: z.enum(["error", "skip"]).default("skip"),
+  }).superRefine((op, context) => {
+    if ((op.path === null) === (op.pathPattern === null)) {
+      context.addIssue({ code: "custom", message: "must give exactly one of 'path' or 'pathPattern'" });
+    }
+    if (op.pathPattern !== null && op.recursive) {
+      context.addIssue({
+        code: "custom",
+        message: "'recursive' is not supported when 'pathPattern' already selects files",
+      });
+    }
   }),
 });
 
@@ -119,12 +149,18 @@ const renameSchema = z.strictObject({
 
 const replaceSchema = z.strictObject({
   replace: z.strictObject({
-    path: pathField,
+    path: pathField.nullable().default(null),
+    pathPattern: patternField.nullable().default(null),
     find: z.string().min(1, "must not be empty"),
     replace: z.string(),
     useRegex: z.boolean().default(false),
     flags: flagsField.default("m"),
     onNoMatch: z.enum(["error", "skip", "createIfMissing"]).default("error"),
+    patternNoMatch: z.enum(["error", "skip"]).default("skip"),
+  }).superRefine((op, context) => {
+    if ((op.path === null) === (op.pathPattern === null)) {
+      context.addIssue({ code: "custom", message: "must give exactly one of 'path' or 'pathPattern'" });
+    }
   }),
 });
 
@@ -209,12 +245,14 @@ function normalizeOperation(raw: RawOperationLike): BulkOperation {
     const op = raw.addContent;
     const operation: AddContentOperation = {
       kind: "addContent",
-      path: tryNormalizeGitPath(op.path) as string,
+      path: op.path === null ? null : tryNormalizeGitPath(op.path) as string,
+      pathPattern: op.pathPattern === null ? null : tryNormalizeGitPath(op.pathPattern) as string,
       content: op.content,
       position: op.position as ContentPosition,
       lineNumber: op.lineNumber,
       skipIfPresent: op.skipIfPresent,
       onFileMissing: op.onFileMissing as MissingFileBehavior,
+      patternNoMatch: op.patternNoMatch as PatternMatchBehavior,
     };
     return operation;
   }
@@ -222,9 +260,11 @@ function normalizeOperation(raw: RawOperationLike): BulkOperation {
     const op = raw.delete;
     const operation: DeleteOperation = {
       kind: "delete",
-      path: tryNormalizeGitPath(op.path) as string,
+      path: op.path === null ? null : tryNormalizeGitPath(op.path) as string,
+      pathPattern: op.pathPattern === null ? null : tryNormalizeGitPath(op.pathPattern) as string,
       recursive: op.recursive,
       onFileMissing: op.onFileMissing as MissingSourceBehavior,
+      patternNoMatch: op.patternNoMatch as PatternMatchBehavior,
     };
     return operation;
   }
@@ -246,12 +286,14 @@ function normalizeOperation(raw: RawOperationLike): BulkOperation {
   const op = raw.replace;
   const operation: ReplaceOperation = {
     kind: "replace",
-    path: tryNormalizeGitPath(op.path) as string,
+    path: op.path === null ? null : tryNormalizeGitPath(op.path) as string,
+    pathPattern: op.pathPattern === null ? null : tryNormalizeGitPath(op.pathPattern) as string,
     find: op.find,
     replace: op.replace,
     useRegex: op.useRegex,
     flags: op.flags,
     onNoMatch: op.onNoMatch as NoMatchBehavior,
+    patternNoMatch: op.patternNoMatch as PatternMatchBehavior,
   };
   return operation;
 }
@@ -261,18 +303,35 @@ type RawOperationLike = z.infer<typeof operationSchema>;
 function extraSemanticIssues(raw: RawDefinition): string[] {
   const issues: string[] = [];
 
+  const checkPattern = (value: string | null, location: string) => {
+    if (value === null) {
+      return;
+    }
+    try {
+      compilePathPattern(value);
+    } catch (err) {
+      issues.push(`${location} is not a valid pattern: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   raw.operations.forEach((operation, index) => {
     if ("addContent" in operation) {
       const op = operation.addContent;
+      checkPattern(op.pathPattern, `operations[${index}].addContent.pathPattern`);
       if (op.position === "lineNumber" && op.lineNumber === null) {
         issues.push(`operations[${index}].addContent.lineNumber is required when position is lineNumber.`);
       }
+      return;
+    }
+    if ("delete" in operation) {
+      checkPattern(operation.delete.pathPattern, `operations[${index}].delete.pathPattern`);
       return;
     }
     if (!("replace" in operation)) {
       return;
     }
     const op = operation.replace;
+    checkPattern(op.pathPattern, `operations[${index}].replace.pathPattern`);
     if (!op.useRegex) {
       return;
     }

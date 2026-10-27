@@ -15,6 +15,7 @@ import { computeFileDiff } from "./diff";
 import { applyOperation } from "./operations";
 import { normalizeGitPath } from "./pathUtils";
 import { getGitPatchPaths } from "./gitPatch";
+import { matchesPathPattern } from "./pathUtils";
 import { VirtualWorkspace } from "./workspace";
 
 /** Default number of entries pulled in when an operation targets a directory. */
@@ -23,12 +24,16 @@ export const DEFAULT_DIRECTORY_SCAN_LIMIT = 50;
 /** Most files a recursive delete may cover; a larger tree is rejected rather than partially deleted. */
 export const DEFAULT_TREE_SCAN_LIMIT = 1000;
 
+/** Most files a path pattern may select; beyond it the repository is refused, like a tree scan. */
+export const DEFAULT_GLOB_SCAN_LIMIT = 500;
+
 /**
  * The paths a definition touches.
  *
  * Literal paths are read directly. A path whose first segment is an existing directory is expanded to
  * that directory's immediate children, so an operation can target a well-known file (e.g. `/build.cfg`)
- * without knowing in advance which repositories contain it.
+ * without knowing in advance which repositories contain it. A `pathPattern` becomes a `pattern` source:
+ * the definition alone cannot enumerate it, so the repository reader resolves it against a listing.
  */
 export function collectSourcePaths(
   definition: BulkChangeDefinition,
@@ -39,21 +44,30 @@ export function collectSourcePaths(
   for (const op of definition.operations) {
     switch (op.kind) {
       case "add":
-      case "addContent":
-      case "replace":
         paths.push({ kind: "literal", path: normalizeGitPath(op.path) });
         break;
+      case "addContent":
+      case "replace":
+      case "delete": {
+        if (op.pathPattern) {
+          paths.push({ kind: "pattern", path: op.pathPattern, maxEntries: DEFAULT_GLOB_SCAN_LIMIT });
+          break;
+        }
+        if (op.path === null) {
+          break;
+        }
+        const exactPath = normalizeGitPath(op.path);
+        paths.push(
+          op.kind === "delete" && op.recursive
+            ? { kind: "tree", path: exactPath, maxEntries: DEFAULT_TREE_SCAN_LIMIT }
+            : { kind: "literal", path: exactPath },
+        );
+        break;
+      }
       case "applyPatch":
         for (const path of getGitPatchPaths(op.patch)) {
           paths.push({ kind: "literal", path });
         }
-        break;
-      case "delete":
-        paths.push(
-          op.recursive
-            ? { kind: "tree", path: normalizeGitPath(op.path), maxEntries: DEFAULT_TREE_SCAN_LIMIT }
-            : { kind: "literal", path: normalizeGitPath(op.path) },
-        );
         break;
       case "rename":
         paths.push({ kind: "literal", path: normalizeGitPath(op.from) });
@@ -114,8 +128,12 @@ interface BaseFileEntry {
 }
 
 /**
- * Turn a base-commit snapshot into the files the engine can work with: literal paths that exist, plus
- * immediate children of the directories the definition touches.
+ * Turn a base-commit snapshot into the files the engine can work with: literal paths that exist,
+ * immediate children of the directories the definition touches, and everything a pattern selects.
+ *
+ * `readFiles` already resolved pattern sources into concrete files, so this only has to keep them;
+ * both sides must agree or a matched file would look new to `describeChanges` and be pushed as an
+ * add instead of an edit.
  */
 function resolveBaseFiles(snapshot: RepoSnapshot, sourcePaths: SourcePath[]): BaseFileEntry[] {
   const byPath = baseByPath(snapshot);
@@ -135,6 +153,15 @@ function resolveBaseFiles(snapshot: RepoSnapshot, sourcePaths: SourcePath[]): Ba
       const treePrefix = root === "/" ? "/" : `${root}/`;
       for (const entry of byPath.values()) {
         if (entry.path === root || entry.path.startsWith(treePrefix)) {
+          resolved.set(entry.path, entry);
+        }
+      }
+      continue;
+    }
+
+    if (source.kind === "pattern") {
+      for (const entry of byPath.values()) {
+        if (matchesPathPattern(source.path, entry.path)) {
           resolved.set(entry.path, entry);
         }
       }
@@ -290,7 +317,14 @@ export function planRepository(
   const warnings: string[] = [];
 
   definition.operations.forEach((op, index) => {
-    const operationPath = "path" in op ? op.path : "from" in op ? op.from : op.kind === "applyPatch" ? "patch" : "";
+    const operationPath =
+      "path" in op
+        ? ((op as { path: string | null }).path ?? (op as { pathPattern: string | null }).pathPattern ?? "")
+        : "from" in op
+          ? op.from
+          : op.kind === "applyPatch"
+            ? "patch"
+            : "";
     try {
       const result = applyOperation(workspace, op, index, { limits });
       opResults.push(result);

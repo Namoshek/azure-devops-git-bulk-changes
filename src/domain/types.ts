@@ -20,6 +20,9 @@ export type ContentPosition = "start" | "end" | "lineNumber";
 /** What to do when a `delete` or `rename` source path does not exist. */
 export type MissingSourceBehavior = "error" | "skip";
 
+/** What to do when a `pathPattern` matches no file in a repository. */
+export type PatternMatchBehavior = "error" | "skip";
+
 export interface AddOperation {
   kind: "add";
   /** Repository-root-relative path, e.g. `/LICENSE`. */
@@ -31,7 +34,10 @@ export interface AddOperation {
 
 export interface AddContentOperation {
   kind: "addContent";
-  path: string;
+  /** Exact repository path, or `null` when `pathPattern` selects the files. */
+  path: string | null;
+  /** Glob-style path pattern selecting every file the operation acts on. */
+  pathPattern?: string | null;
   /** Inserted as whole lines. */
   content: string;
   position: ContentPosition;
@@ -40,6 +46,8 @@ export interface AddContentOperation {
   /** When true the operation is a no-op if the file already contains the content. */
   skipIfPresent: boolean;
   onFileMissing: MissingFileBehavior;
+  /** Only meaningful when `pathPattern` is set: what to do when it matches no file. */
+  patternNoMatch?: PatternMatchBehavior;
 }
 
 export interface ApplyPatchOperation {
@@ -55,10 +63,15 @@ export interface ApplyPatchOperation {
 
 export interface DeleteOperation {
   kind: "delete";
-  path: string;
+  /** Exact repository path, or `null` when `pathPattern` selects the files. */
+  path: string | null;
+  /** Glob-style path pattern selecting every file the operation acts on. */
+  pathPattern?: string | null;
   /** When true `path` may be a directory, and everything below it is deleted. */
   recursive: boolean;
   onFileMissing: MissingSourceBehavior;
+  /** Only meaningful when `pathPattern` is set: what to do when it matches no file. */
+  patternNoMatch?: PatternMatchBehavior;
 }
 
 export interface RenameOperation {
@@ -72,7 +85,10 @@ export interface RenameOperation {
 
 export interface ReplaceOperation {
   kind: "replace";
-  path: string;
+  /** Exact repository path, or `null` when `pathPattern` selects the files. */
+  path: string | null;
+  /** Glob-style path pattern selecting every file the operation acts on. */
+  pathPattern?: string | null;
   /** Literal string or regular expression source, depending on `useRegex`. */
   find: string;
   /** Replacement text. May reference `$1`, `$&`, ... when `useRegex` is true. */
@@ -81,6 +97,8 @@ export interface ReplaceOperation {
   /** Regex flags, only meaningful when `useRegex` is true. */
   flags: string;
   onNoMatch: NoMatchBehavior;
+  /** Only meaningful when `pathPattern` is set: what to do when it matches no file. */
+  patternNoMatch?: PatternMatchBehavior;
 }
 
 export type BulkOperation =
@@ -171,8 +189,10 @@ export interface OpResult {
   /** Index of the operation in the definition. */
   index: number;
   kind: OperationKind;
-  /** Primary path the operation acted on. */
+  /** Primary path the operation acted on; empty when a pattern fanned out over many files. */
   path: string;
+  /** Every path a pattern operation selected, sorted. Omitted for single-path operations. */
+  matchedPaths?: string[];
   severity: OpSeverity;
   message: string;
 }
@@ -234,11 +254,14 @@ export interface EngineLimits {
   maxFileChars: number;
   /** Maximum number of diff lines rendered per file. */
   maxDiffLines: number;
+  /** A pattern may not select more files than this; refusing beats acting on a partial set. */
+  maxMatchedFiles: number;
 }
 
 export const DEFAULT_LIMITS: EngineLimits = {
   maxFileChars: 1024 * 1024,
   maxDiffLines: 4000,
+  maxMatchedFiles: 500,
 };
 
 /**
@@ -249,7 +272,12 @@ export type SourcePath =
   | { kind: "literal"; path: string }
   | { kind: "directory"; path: string; maxEntries?: number }
   /** Every file below `path`, at any depth. Listing more than `maxEntries` files is an error, never a truncation. */
-  | { kind: "tree"; path: string; maxEntries?: number };
+  | { kind: "tree"; path: string; maxEntries?: number }
+  /**
+   * A glob-style path pattern. Resolved by the repository reader against a full listing at the pinned
+   * commit — the REST API has no pattern support, so matching is necessarily client-side.
+   */
+  | { kind: "pattern"; path: string; maxEntries?: number };
 
 /** A snapshot of the files a definition touches, at a specific commit. */
 export interface RepoSnapshot {

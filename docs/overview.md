@@ -17,12 +17,24 @@ The extension adds a page to the collection settings that lets any user of the o
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `add`        | Create a file; optionally only when it is missing.                                                                                                                                                        |
 | `addContent` | Insert text at the `start`, the `end` or a `lineNumber` of an existing file.                                                                                                                              |
-| `applyPatch` | Apply a unified Git patch across one or more text files. With `allowPartial: true`, files the patch cannot apply to are skipped; the operation only fails when no file would change. |
-| `delete`     | Remove a file, or a whole directory with `recursive: true`; can ignore missing ones.                                                                                                                      |
+| `applyPatch` | Apply a unified Git patch across one or more text files. With `allowPartial: true`, files the patch cannot apply to are skipped; the operation only fails when no file would change.                      |
+| `delete`     | Remove a file, or a whole directory with `recursive: true`; can ignore missing ones. With `pathPattern`, deletes every file the pattern matches.                                                          |
 | `rename`     | Rename or move a file (content is carried over).                                                                                                                                                          |
 | `replace`    | Replace literal text by default. With `useRegex: true`, `find` is a JavaScript regex, `$1` or `$<name>` in `replace` reference capture groups, and all matches are replaced (`g` is added automatically). |
 
-Paths are exact and case-sensitive, so a definition always says precisely which files it touches; listing a directory expands to the files inside it. Patch paths are read from their headers and must stay inside the repository. Binary patches and file-mode changes are always rejected; with `applyPatch.allowPartial: true`, hunks that do not match the current file content only skip that file, and the operation fails only when every file of the patch would be skipped (zero actual changes). A file that cannot be read as text (binary, too large) is skipped with a reason instead of being mangled.
+#### Path & Pattern Matching
+
+Besides the `path` parameter that is exact and case-sensitive, some operations offer a `pathPattern` as alternative (`addContent`, `delete` and `replace`). Those path patterns accept a glob-style pattern (`*` matches inside one path segment, `**` spans directories, `?` one character, `[a-z]` a class), so one operation can fan out over every matching file in a repository.
+
+Patterns resolve against the repository at the pinned commit. The Azure DevOps REST API has no pattern support, so matching is done client-side against a listing scoped to the pattern's literal prefix. Due to technical constraints, this operation is limited to a maximum of 500 matched files and will throw an error when a pattern matches more files.
+
+When a pattern matches nothing, `patternNoMatch` decides: `skip` (the default, so a heterogeneous repository set stays usable) or `error`. 
+
+Exact paths and patterns cannot both be given at the same time, because that would make no sense and could lead to ambiguous behavior.
+
+#### Other Constraints
+
+Binary patches and file-mode changes are always rejected; with `applyPatch.allowPartial: true`, hunks that do not match the current file content only skip that file, and the operation fails only when every file of the patch would be skipped (zero actual changes). A file that cannot be read as text (binary, too large) is skipped with a reason instead of being mangled.
 
 ### Write modes
 
@@ -91,7 +103,6 @@ All calls go directly to the Azure DevOps REST API with the signed-in user's OAu
 ## Limitations
 
 - Git repositories only; TFVC repositories (and disabled repositories) are not supported.
-- Currently, only exact paths are supported (no glob or wildcard matching).
 - Text files up to 1 MiB are processed; larger or binary files are skipped to prevent performance issues.
 
 ## Screenshots

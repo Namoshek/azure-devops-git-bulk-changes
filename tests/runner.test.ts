@@ -3,6 +3,7 @@ import type { PullRequestRequest, PushRequest, RepoAccess } from "../src/domain/
 import { applyRepos, branchFor, previewRepos } from "../src/services/runner";
 import { mapWithConcurrency } from "../src/utils/concurrency";
 import { parseDefinition } from "../src/domain/schema";
+import { matchesPathPattern } from "../src/domain/engine/pathUtils";
 
 function definitionOf(yaml: string) {
   const result = parseDefinition(yaml);
@@ -64,6 +65,16 @@ function createStub(options: StubOptions = {}) {
       for (const source of sourcePaths) {
         if (source.kind === "literal") {
           wanted.add(source.path);
+        } else if (source.kind === "pattern") {
+          const matched = Object.keys(files).filter((path) => matchesPathPattern(source.path, path));
+          const limit = source.maxEntries ?? 500;
+          if (matched.length > limit) {
+            throw new BulkChangeError(
+              "too_many_matches",
+              `Pattern "${source.path}" matches ${matched.length} files, above the ${limit} limit.`,
+            );
+          }
+          matched.forEach((path) => wanted.add(path));
         } else {
           const prefix = source.path === "/" ? "/" : `${source.path}/`;
           for (const path of Object.keys(files)) {
@@ -257,6 +268,29 @@ operations:
     const plans = await previewRepos(access, definitionOf(ADD_LICENSE), [repo("A", "a")]);
     expect(plans[0].baseCommit).toBe("abc123");
     expect(reads).toEqual(["a:abc123"]);
+  });
+
+  it("resolves a pathPattern end to end into one fan-out row across the matched files", async () => {
+    const { access } = createStub({
+      files: { a: { "/src/a.ts": "pool: Azure", "/src/deep/b.ts": "pool: Azure", "/README.md": "keep" } },
+    });
+    const glob = `
+writeMode: directCommit
+commitMessage: "Repoint pool"
+operations:
+  - replace:
+      pathPattern: "/src/**/*.ts"
+      find: "pool: Azure"
+      replace: "pool: Self"
+`;
+    const plans = await previewRepos(access, definitionOf(glob), [repo("A", "a")]);
+
+    expect(plans[0].status).toBe("would-change");
+    expect(plans[0].opResults).toHaveLength(1);
+    expect(plans[0].opResults[0].path).toBe("/src/**/*.ts");
+    expect(plans[0].opResults[0].matchedPaths).toEqual(["/src/a.ts", "/src/deep/b.ts"]);
+    expect(plans[0].desired).toHaveLength(2);
+    expect(plans[0].diffs.map((diff) => diff.path)).toEqual(["/src/a.ts", "/src/deep/b.ts"]);
   });
 });
 

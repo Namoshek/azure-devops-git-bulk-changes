@@ -56,9 +56,12 @@ const TEMPLATES: Record<OperationKind, Record<string, unknown>> = {
 };
 
 /** Same-line comments that clarify template fields and list allowed enum values. */
+const PATH_PATTERN_HINT = "exact file; use pathPattern (e.g. /src/**/*.ts) to match many";
+
 const FIELD_COMMENTS: Record<OperationKind, Record<string, string>> = {
   add: {},
   addContent: {
+    path: PATH_PATTERN_HINT,
     position: "start | end | lineNumber",
     lineNumber: "1-based; only used when position is lineNumber",
     onFileMissing: "error | skip | createIfMissing",
@@ -67,9 +70,9 @@ const FIELD_COMMENTS: Record<OperationKind, Record<string, string>> = {
     patch: "text Git unified diff; binary and file-mode-only patches are unsupported",
     allowPartial: "true | false; with true, files the patch cannot apply are skipped",
   },
-  delete: { onFileMissing: "error | skip" },
+  delete: { path: PATH_PATTERN_HINT, onFileMissing: "error | skip" },
   rename: { onFileMissing: "error | skip" },
-  replace: { onNoMatch: "error | skip | createIfMissing" },
+  replace: { path: PATH_PATTERN_HINT, onNoMatch: "error | skip | createIfMissing" },
 };
 
 /** A short comment describing the step, kept above it so the YAML stays self-documenting. */

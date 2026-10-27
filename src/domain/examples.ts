@@ -4,6 +4,7 @@ import addReadmeCredits from "./examples/add-readme-credits.yml";
 import deleteVsDirectory from "./examples/delete-vs-directory.yml";
 import renameConfig from "./examples/rename-config.yml";
 import updateAgentPool from "./examples/update-agent-pool.yml";
+import updateConfigGlob from "./examples/update-config-glob.yml";
 import { parseDefinition, ParseResult } from "./schema";
 
 export interface DefinitionExample {
@@ -25,6 +26,7 @@ export const EXAMPLES: DefinitionExample[] = [
   { id: "update-agent-pool", label: "Update agent pool in azure-pipelines.yml", yaml: updateAgentPool },
   { id: "delete-vs-directory", label: "Delete .vs directory", yaml: deleteVsDirectory },
   { id: "add-readme-credits", label: "Add credits to README.md", yaml: addReadmeCredits },
+  { id: "update-config-glob", label: "Update every config file (wildcard)", yaml: updateConfigGlob },
 ];
 
 export function findExample(id: string): DefinitionExample | undefined {

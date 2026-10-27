@@ -7,7 +7,12 @@ import * as Git from "azure-devops-extension-api/Git";
 import * as Core from "azure-devops-extension-api/Core";
 import { BaseFile, BulkChangeError, RepoTarget } from "../domain/types";
 import { PullRequestRequest, PullRequestResult, PushRequest, PushResult, RepoAccess } from "../domain/repoAccess";
-import { DEFAULT_DIRECTORY_SCAN_LIMIT, DEFAULT_TREE_SCAN_LIMIT } from "../domain/engine/planEngine";
+import {
+  DEFAULT_DIRECTORY_SCAN_LIMIT,
+  DEFAULT_GLOB_SCAN_LIMIT,
+  DEFAULT_TREE_SCAN_LIMIT,
+} from "../domain/engine/planEngine";
+import { matchesPathPattern, patternScopePath } from "../domain/engine/pathUtils";
 import { mapWithConcurrency } from "../utils/concurrency";
 
 /** Repository file reads are fanned out with this many requests per repository. */
@@ -185,6 +190,78 @@ async function readDirectoryEntries(
 }
 
 /**
+ * List every path below `scope` at `commit`, without content. Used by pattern matching, which the
+ * REST API cannot do itself: it takes an explicit path or a scope path, never a pattern.
+ */
+async function listPathsUnder(
+  client: GitRestClient,
+  target: RepoTarget,
+  commit: string,
+  scope: string,
+): Promise<string[]> {
+  const items = await client.getItems(
+    target.repositoryId,
+    target.projectName,
+    scope,
+    Git.VersionControlRecursionType.Full,
+    false,
+    false,
+    false,
+    false,
+    commitVersion(commit),
+  );
+  return items.filter((item) => !item.isFolder).map((item) => item.path);
+}
+
+/**
+ * Read every file a glob-style pattern selects, at `commit`.
+ *
+ * The listing is scoped to the pattern's literal prefix, so a pattern rooted at a directory never
+ * walks the whole repository. Matching the pattern is done client-side. Over `limit` matches the repository is
+ * refused rather than acted on partially — a fan-out must be all-or-nothing like a recursive delete.
+ */
+async function readPatternFiles(
+  client: GitRestClient,
+  target: RepoTarget,
+  commit: string,
+  pattern: string,
+  limit: number,
+  maxFileChars: number,
+): Promise<BaseFile[]> {
+  try {
+    const scope = patternScopePath(pattern);
+    const candidates = await listPathsUnder(client, target, commit, scope);
+    const matched = candidates.filter((path) => matchesPathPattern(pattern, path));
+    if (matched.length > limit) {
+      throw new BulkChangeError(
+        "too_many_matches",
+        `Pattern "${pattern}" matches ${matched.length} files in ${target.repositoryName}, above the ${limit} limit; refusing to change any of them.`,
+      );
+    }
+
+    // Reuse the single-path reader so binary and oversized files keep their skip reasons.
+    const read = await mapWithConcurrency(matched, READ_CONCURRENCY, async (path) =>
+      readItem(client, target, commit, path, maxFileChars),
+    );
+    return read.flatMap((file) => (file ? [file] : []));
+  } catch (err) {
+    if (err instanceof BulkChangeError) {
+      throw err;
+    }
+    if (isNotFoundError(err)) {
+      return [];
+    }
+    if (isAccessError(err)) {
+      throw new BulkChangeError(
+        "no_access",
+        serverMessage(err, `No access to ${patternScopePath(pattern)} in ${target.repositoryName}.`),
+      );
+    }
+    throw err;
+  }
+}
+
+/**
  * Every file below `path` (at any depth), read with their content where possible.
  *
  * A listing larger than `limit` is rejected: a recursive delete must never act on a partial listing.
@@ -294,17 +371,30 @@ export function createRepoAccess(options: RepoClientOptions = {}): RepoAccess {
       );
       const treeFiles = trees.flat();
 
-      // Tree reads now load content themselves, so literal paths already covered by a tree are not
+      const patternSources = sourcePaths.filter((source) => source.kind === "pattern");
+      const patterns = await mapWithConcurrency(patternSources, 4, async (source) =>
+        readPatternFiles(
+          client,
+          target,
+          commit,
+          source.path,
+          source.maxEntries ?? DEFAULT_GLOB_SCAN_LIMIT,
+          maxFileChars,
+        ),
+      );
+      const patternFiles = patterns.flat();
+
+      // Tree and pattern reads load content themselves, so literal paths they already cover are not
       // fetched a second time.
-      const treeRead = new Set(treeFiles.map((file) => file.path));
+      const alreadyRead = new Set<string>([...treeFiles, ...patternFiles].map((file) => file.path));
       const files = await mapWithConcurrency(
-        [...wanted].filter((path) => !treeRead.has(path)),
+        [...wanted].filter((path) => !alreadyRead.has(path)),
         READ_CONCURRENCY,
         async (path) => readItem(client, target, commit, path, maxFileChars),
       );
 
       const byPath = new Map<string, BaseFile>();
-      for (const file of treeFiles) {
+      for (const file of [...treeFiles, ...patternFiles]) {
         byPath.set(file.path, file);
       }
       for (const file of files) {

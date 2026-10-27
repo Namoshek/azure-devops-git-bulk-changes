@@ -6,11 +6,13 @@ import {
   DeleteOperation,
   EngineLimits,
   OpResult,
+  OperationKind,
+  PatternMatchBehavior,
   ReplaceOperation,
 } from "../types";
 import { VirtualWorkspace, WorkspaceFile } from "./workspace";
 import { applyGitPatch } from "./gitPatch";
-import { normalizeGitPath } from "./pathUtils";
+import { matchesPathPattern, normalizeGitPath } from "./pathUtils";
 
 export interface OperationContext {
   limits: EngineLimits;
@@ -126,6 +128,87 @@ function applyDelete(workspace: VirtualWorkspace, index: number, op: DeleteOpera
 
 function isInTree(candidate: string, root: string): boolean {
   return candidate === root || candidate.startsWith(root === "/" ? "/" : `${root}/`);
+}
+
+/**
+ * Apply one operation to every file a `pathPattern` selects, then collapse the per-file results into
+ * one `OpResult` — operations stay 1:1 with results so the ops table and `summarize()` keep working.
+ *
+ * The match set comes from the live workspace, so a file created or moved by an earlier operation can
+ * be selected and one deleted earlier is skipped. Over the cap the whole repository is refused, never
+ * partially changed (the same stance as a too-large recursive delete).
+ */
+function fanOut(
+  workspace: VirtualWorkspace,
+  index: number,
+  kind: OperationKind,
+  pattern: string,
+  onNoMatch: PatternMatchBehavior,
+  limits: EngineLimits,
+  onPath: (path: string) => OpResult,
+): OpResult {
+  const matched = workspace
+    .paths()
+    .filter((candidate) => matchesPathPattern(pattern, candidate))
+    .sort();
+
+  if (matched.length === 0) {
+    if (onNoMatch === "skip") {
+      return {
+        index,
+        kind,
+        path: pattern,
+        matchedPaths: [],
+        severity: "noop",
+        message: `Pattern "${pattern}" matches no file in this repository — nothing to do.`,
+      };
+    }
+    throw new BulkChangeError("pattern_no_match", `Pattern "${pattern}" matches no file in this repository.`);
+  }
+
+  if (matched.length > limits.maxMatchedFiles) {
+    throw new BulkChangeError(
+      "too_many_matches",
+      `Pattern "${pattern}" matches ${matched.length} file(s), above the ${limits.maxMatchedFiles} limit; refusing to change any of them.`,
+    );
+  }
+
+  const perPath = matched.map(onPath);
+  const errors = perPath.filter((r) => r.severity === "error");
+  const applied = perPath.filter((r) => r.severity === "applied");
+  const warned = perPath.filter((r) => r.severity === "warning");
+
+  if (errors.length > 0) {
+    return {
+      index,
+      kind,
+      path: pattern,
+      matchedPaths: matched,
+      severity: "error",
+      message: `Pattern "${pattern}" matched ${matched.length} file(s); ${errors.length} could not be processed: ${errors[0].message}`,
+    };
+  }
+
+  if (applied.length === 0 && warned.length === 0) {
+    return {
+      index,
+      kind,
+      path: pattern,
+      matchedPaths: matched,
+      severity: "noop",
+      message: `Pattern "${pattern}" matched ${matched.length} file(s); every one is already satisfied.`,
+    };
+  }
+
+  const changed = applied.length + warned.length;
+  return {
+    index,
+    kind,
+    path: pattern,
+    matchedPaths: matched,
+    severity: applied.length === 0 ? "warning" : "applied",
+    message: `Pattern "${pattern}" matched ${matched.length} file(s); ${changed} would change.`,
+  };
 }
 
 /** `text` with every line ending replaced by `eol`, and exactly one terminating line ending. */
@@ -334,18 +417,34 @@ export function applyOperation(
     case "add":
       return applyAdd(workspace, index, normalizeGitPath(op.path), op.content, op.onlyIfMissing);
     case "addContent": {
-      const normalized = normalizeGitPath(op.path);
-      return applyAddContent(workspace, index, { ...op, path: normalized }, normalized, context.limits);
+      if (op.pathPattern) {
+        return fanOut(workspace, index, op.kind, op.pathPattern, op.patternNoMatch ?? "skip", context.limits, (path) =>
+          applyAddContent(workspace, index, { ...op, path, pathPattern: null }, path, context.limits),
+        );
+      }
+      const normalized = normalizeGitPath(op.path ?? "");
+      return applyAddContent(workspace, index, { ...op, pathPattern: null }, normalized, context.limits);
     }
     case "applyPatch":
       return applyGitPatch(workspace, op, index, context.limits);
-    case "delete":
-      return applyDelete(workspace, index, op, normalizeGitPath(op.path));
+    case "delete": {
+      if (op.pathPattern) {
+        return fanOut(workspace, index, op.kind, op.pathPattern, op.patternNoMatch ?? "skip", context.limits, (path) =>
+          applyDelete(workspace, index, { ...op, path, pathPattern: null, recursive: false }, path),
+        );
+      }
+      return applyDelete(workspace, index, op, normalizeGitPath(op.path ?? ""));
+    }
     case "rename":
       return applyRename(workspace, index, normalizeGitPath(op.from), normalizeGitPath(op.to), op.onFileMissing);
     case "replace": {
-      const normalized = normalizeGitPath(op.path);
-      return applyReplace(workspace, index, { ...op, path: normalized }, normalized, context.limits);
+      if (op.pathPattern) {
+        return fanOut(workspace, index, op.kind, op.pathPattern, op.patternNoMatch ?? "skip", context.limits, (path) =>
+          applyReplace(workspace, index, { ...op, path, pathPattern: null }, path, context.limits),
+        );
+      }
+      const normalized = normalizeGitPath(op.path ?? "");
+      return applyReplace(workspace, index, { ...op, pathPattern: null }, normalized, context.limits);
     }
     default: {
       const unknown = op as { kind: string };

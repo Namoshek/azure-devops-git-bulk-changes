@@ -15,6 +15,13 @@ jest.mock("azure-devops-extension-api/Core", () => ({
 }));
 jest.mock("azure-devops-extension-api/Git", () => ({}));
 jest.mock("azure-devops-extension-api/Core", () => ({}));
+// `readFiles` runs against these, so the constants it passes to the Git client have to exist.
+jest.mock("azure-devops-extension-api/Git", () => ({
+  VersionControlRecursionType: { None: 0, OneLevel: 1, Half: 2, Full: 3 },
+  GitVersionType: { Commit: "commit" },
+  GitVersionOptions: { None: 0 },
+}));
+jest.mock("azure-devops-extension-api/Core", () => ({}));
 
 import * as SDK from "azure-devops-extension-sdk";
 import { RepoTarget } from "../src/domain/types";
@@ -204,5 +211,45 @@ describe("listWritableRepositoryIds", () => {
     fetchMock.mockReturnValue({ ok: false, status: 401, json: () => ({}) });
 
     await expect(listWritableRepositoryIds(repositories)).resolves.toEqual(null as Set<string> | null);
+  });
+});
+
+describe("readFiles", () => {
+  const readClient = { getItems: jest.fn(), getItem: jest.fn() };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (getClient as jest.Mock).mockReturnValue(readClient);
+    readClient.getItem.mockReturnValue({ objectId: "sha-x", content: "x" });
+  });
+
+  it("resolves a pattern source by listing the scope and keeping only matching files", async () => {
+    readClient.getItems.mockReturnValue([
+      { path: "/src/a.ts", isFolder: false },
+      { path: "/src/deep/b.ts", isFolder: false },
+      { path: "/src/keep.md", isFolder: false },
+      { path: "/src", isFolder: true },
+    ]);
+
+    const files = await createRepoAccess().readFiles(target, "base-sha", [
+      { kind: "pattern", path: "/src/**/*.ts", maxEntries: 500 },
+    ]);
+
+    // The listing is scoped to the pattern's literal prefix, so the API call never asks for the root.
+    expect(readClient.getItems.mock.calls[0][2]).toBe("/src");
+    expect(files.map((file) => file.path)).toEqual(["/src/a.ts", "/src/deep/b.ts"]);
+  });
+
+  it("refuses a pattern over the cap instead of reading part of the matches", async () => {
+    readClient.getItems.mockReturnValue([
+      { path: "/src/a.ts", isFolder: false },
+      { path: "/src/b.ts", isFolder: false },
+      { path: "/src/c.ts", isFolder: false },
+    ]);
+
+    await expect(
+      createRepoAccess().readFiles(target, "base-sha", [{ kind: "pattern", path: "/src/*.ts", maxEntries: 2 }]),
+    ).rejects.toThrow(/above the 2 limit/);
+    expect(readClient.getItem).not.toHaveBeenCalled();
   });
 });
