@@ -16,7 +16,7 @@ preview can you apply the changes.
 
 ## How it works
 
-1. **Pick the scope.** Select the repositories to change from a single filterable list that spans every project you can access (each entry is labelled with its project). The list only contains repositories the signed-in user can read, so filtering matches across all of them at once.
+1. **Pick the scope.** Select repositories from a single filterable list that spans every project you can access (each entry is labelled with its project). Save up to 10 user-specific presets for faster selection; applying a preset selects only repositories that remain selectable.
 2. **Describe the change once.** A definition is a small YAML document: an ordered list of operations plus how the result should be written (`writeMode`, `commitMessage`, `pullRequest`, and an optional target `branch`).
 3. **Preview.** The preview is a read-only dry run. Each repository is read, the operations are applied in memory, and you get a per-repository status with the exact unified diff and a specific reason for anything skipped or failed. Diffs are computed locally and never sent to Azure DevOps.
 4. **Apply.** Only after reviewing the preview and accepting the changes, they are written to the repositories. If any repository cannot be updated, it is skipped with a reason, and the rest continue independently.

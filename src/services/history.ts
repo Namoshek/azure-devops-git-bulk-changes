@@ -1,10 +1,8 @@
-import * as SDK from "azure-devops-extension-sdk";
-import { CommonServiceIds, IExtensionDataManager, IExtensionDataService } from "azure-devops-extension-api";
 import { ApplyResult } from "../domain/types";
+import { getUserExtensionDataManager, USER_SCOPE } from "./extensionData";
 
 const HISTORY_COLLECTION = "gitBulkChangesHistory";
 const MAX_HISTORY_RECORDS = 100;
-const USER_SCOPE = { scopeType: "User", scopeValue: "Me" };
 
 export interface BulkChangeHistoryRecord {
   id: string;
@@ -13,29 +11,13 @@ export interface BulkChangeHistoryRecord {
   results: ApplyResult[];
 }
 
-let managerPromise: Promise<IExtensionDataManager> | null = null;
-
-async function getManager(): Promise<IExtensionDataManager> {
-  if (!managerPromise) {
-    managerPromise = (async () => {
-      const dataService = await SDK.getService<IExtensionDataService>(CommonServiceIds.ExtensionDataService);
-      const accessToken = await SDK.getAccessToken();
-      return dataService.getExtensionDataManager(SDK.getExtensionContext().id, accessToken);
-    })().catch((err) => {
-      managerPromise = null;
-      throw err;
-    });
-  }
-  return managerPromise;
-}
-
 export function mostRecentHistory(records: BulkChangeHistoryRecord[]): BulkChangeHistoryRecord[] {
   return [...records].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, MAX_HISTORY_RECORDS);
 }
 
 export async function getRecentBulkChangeHistory(): Promise<BulkChangeHistoryRecord[]> {
   try {
-    const manager = await getManager();
+    const manager = await getUserExtensionDataManager();
     const documents = (await manager.getDocuments(HISTORY_COLLECTION, USER_SCOPE)) as BulkChangeHistoryRecord[];
     return mostRecentHistory(documents);
   } catch (err) {
@@ -49,7 +31,7 @@ export async function recordBulkChangeHistory(yamlText: string, results: ApplyRe
     return;
   }
 
-  const manager = await getManager();
+  const manager = await getUserExtensionDataManager();
   await manager.createDocument(
     HISTORY_COLLECTION,
     { timestamp: new Date().toISOString(), yamlText, results },

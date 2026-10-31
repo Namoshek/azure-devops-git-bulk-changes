@@ -1,0 +1,71 @@
+.bc-repository-presets {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bc-repository-presets-dialog {
+  min-width: min(560px, 75vw);
+}
+
+.bc-repository-presets-loading {
+  display: flex;
+  justify-content: center;
+  padding: 32px 0;
+}
+
+.bc-repository-presets-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bc-repository-presets-empty {
+  margin: 8px 0;
+}
+
+.bc-repository-preset-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.bc-repository-preset-entry {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--palette-neutral-8, #d6d6d6);
+}
+
+.bc-repository-preset-entry-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bc-repository-preset-entry-actions,
+.bc-repository-preset-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bc-repository-preset-unavailable {
+  color: var(--text-secondary-color, #666);
+}
+
+.bc-repository-preset-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--palette-neutral-8, #d6d6d6);
+  border-radius: 3px;
+}
+
+.bc-repository-preset-form-actions {
+  justify-content: flex-end;
+}

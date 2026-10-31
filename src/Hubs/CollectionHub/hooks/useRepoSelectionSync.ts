@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { IListBoxItem } from "azure-devops-ui/Components/ListBox/ListBox.Props";
 import { DropdownMultiSelection } from "azure-devops-ui/Utilities/DropdownSelection";
-import { RepoRow, ScopeState } from "./useProjectRepos";
+import { isSelectable, RepoRow } from "./useProjectRepos";
 
 export interface RepoSelectionBinding {
   items: IListBoxItem<RepoRow>[];
@@ -15,7 +15,11 @@ export interface RepoSelectionBinding {
  * through the selection subscription. Rows without Contribute access are marked disabled so they
  * render greyed out and cannot be clicked into the selection.
  */
-export function useRepoSelectionSync(scope: ScopeState): RepoSelectionBinding {
+export function useRepoSelectionSync(
+  repoRows: RepoRow[],
+  selectedRepoIds: string[],
+  onSelectionChange: (repositoryIds: string[]) => void,
+): RepoSelectionBinding {
   const selectionRef = useRef<DropdownMultiSelection>(new DropdownMultiSelection());
   const notifyRef = useRef<() => void>(() => undefined);
   // Suppresses notifications caused by pushing React state into the selection, so only genuine user
@@ -24,7 +28,7 @@ export function useRepoSelectionSync(scope: ScopeState): RepoSelectionBinding {
 
   const items = useMemo<IListBoxItem<RepoRow>[]>(
     () =>
-      scope.repoRows.map((row, index) => {
+      repoRows.map((row, index) => {
         const hasRepo = row.target.repositoryId !== "";
         const label = hasRepo ? `${row.target.projectName} / ${row.target.repositoryName}` : "(could not list)";
         return {
@@ -32,26 +36,24 @@ export function useRepoSelectionSync(scope: ScopeState): RepoSelectionBinding {
           text: label,
           ariaLabel: hasRepo ? label : "Repositories unavailable",
           // Read-only repositories stay visible but ListBox ignores them for focus and selection.
-          disabled: !hasRepo || row.canContribute === false,
+          disabled: !isSelectable(row),
           data: row,
         };
       }),
-    [scope.repoRows],
+    [repoRows],
   );
   const itemIds = useMemo(() => items.map((item) => item.id), [items]);
+  const selectableIds = useMemo(
+    () => new Set(repoRows.filter(isSelectable).map((row) => row.target.repositoryId)),
+    [repoRows],
+  );
 
-  // Keep the reconciliation callback current so the subscription handler never closes over stale state.
+  // Keep the callback current so the subscription handler never closes over stale state.
   useEffect(() => {
     notifyRef.current = (): void => {
-      const selectedIds = new Set(selectedItemIds(selectionRef.current, itemIds));
-      for (const row of scope.repoRows) {
-        const id = row.target.repositoryId;
-        if (id && selectedIds.has(id) !== scope.selectedRepoIds.includes(id)) {
-          scope.toggleRepo(id);
-        }
-      }
+      onSelectionChange(selectedItemIds(selectionRef.current, itemIds).filter((id) => selectableIds.has(id)));
     };
-  });
+  }, [itemIds, onSelectionChange, selectableIds]);
 
   useEffect(() => {
     const selection = selectionRef.current;
@@ -68,9 +70,9 @@ export function useRepoSelectionSync(scope: ScopeState): RepoSelectionBinding {
 
   useEffect(() => {
     syncing.current = true;
-    applySelection(selectionRef.current, scope.selectedRepoIds, itemIds);
+    applySelection(selectionRef.current, selectedRepoIds, itemIds);
     syncing.current = false;
-  }, [scope.selectedRepoIds, itemIds]);
+  }, [selectedRepoIds, itemIds]);
 
   return { items, selection: selectionRef.current };
 }

@@ -9,6 +9,7 @@ import { InlineText } from "../../../../components/InlineText/InlineText";
 import { CardBody } from "../../../../components/CardBody/CardBody";
 import { ScopeState } from "../../hooks/useProjectRepos";
 import { RepositoryDropdown } from "../RepositoryDropdown/RepositoryDropdown";
+import { RepositoryPresets } from "../RepositoryPresets/RepositoryPresets";
 import "./ScopeCard.css";
 
 const SpinnerBase = asComponent(Spinner);
@@ -46,17 +47,29 @@ export function ScopeCard({ scope }: { scope: ScopeState }) {
           {scope.loading ? (
             <SpinnerBase size={SpinnerSize.small} label="Loading repositories…" ariaLabel="Loading repositories" />
           ) : (
-            <RepositoryDropdown scope={scope} />
+            <RepositoryDropdown
+              repoRows={scope.repoRows}
+              selectedRepoIds={scope.selectedRepoIds}
+              onSelectionChange={scope.selectRepos}
+              disabled={scope.loading}
+            />
           )}
         </FormItemBase>
 
-        <ButtonGroupBase className="flex-center">
-          <Button text="Select all" onClick={() => scope.setAllRepos(true)} disabled={selectableCount === 0} />
-          <Button text="Clear" onClick={() => scope.setAllRepos(false)} disabled={scope.selectedRepoIds.length === 0} />
-          <InlineText tone="muted">
-            {scope.selectedRepoIds.length} / {selectableCount} selected
-          </InlineText>
-        </ButtonGroupBase>
+        <div className="bc-scope-toolbar">
+          <ButtonGroupBase className="flex-center">
+            <Button text="Select all" onClick={() => scope.setAllRepos(true)} disabled={selectableCount === 0} />
+            <Button
+              text="Clear"
+              onClick={() => scope.setAllRepos(false)}
+              disabled={scope.selectedRepoIds.length === 0}
+            />
+            <InlineText tone="muted">
+              {scope.selectedRepoIds.length} / {selectableCount} selected
+            </InlineText>
+          </ButtonGroupBase>
+          <RepositoryPresets scope={scope} />
+        </div>
       </CardBody>
     </CardBase>
   );
