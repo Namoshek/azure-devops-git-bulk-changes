@@ -28,7 +28,7 @@ Besides the `path` parameter that is exact and case-sensitive, some operations o
 
 Patterns resolve against the repository at the pinned commit. The Azure DevOps REST API has no pattern support, so matching is done client-side against a listing scoped to the pattern's literal prefix. Due to technical constraints, this operation is limited to a maximum of 500 matched files and will throw an error when a pattern matches more files.
 
-When a pattern matches nothing, `patternNoMatch` decides: `skip` (the default, so a heterogeneous repository set stays usable) or `error`. 
+When a pattern matches nothing, `patternNoMatch` decides: `skip` (the default, so a heterogeneous repository set stays usable) or `error`.
 
 Exact paths and patterns cannot both be given at the same time, because that would make no sense and could lead to ambiguous behavior.
 
@@ -40,8 +40,8 @@ Binary patches and file-mode changes are always rejected; with `applyPatch.allow
 
 The `writeMode` defines how the changes will be applied to the repositories:
 
-- **Pull requests** (`writeMode: pullRequest`): a commit on a new source branch plus an open pull request per repository. Set `pullRequest.autoMerge: true` to enable Azure DevOps auto-complete; it merges only after the pull request's configured requirements pass. The optional `branch` key selects the base branch the pull request is merged into.
-- **Direct commit** (`writeMode: directCommit`, the default): commit straight onto the target branch. Set the optional `branch` key to read from and commit to a branch other than the repository's default. Requires Contribute permission on the branch, and the changes cannot be undone from this page.
+- **Pull requests** (`writeMode: pullRequest`, the default): a commit on a new source branch plus an open pull request per repository. Set `pullRequest.autoMerge: true` to enable Azure DevOps auto-complete; it merges only after the pull request's configured requirements pass. The optional `branch` key selects the base branch the pull request is merged into.
+- **Direct commit** (`writeMode: directCommit`): commit straight onto the target branch. Set the optional `branch` key to read from and commit to a branch other than the repository's default. Requires Contribute permission on the branch, and the changes cannot be undone from this page.
 
 When `branch` is omitted, each repository's default branch is used in both modes; when it is set, repositories that do not have that branch fail with a clear reason instead of being written.
 

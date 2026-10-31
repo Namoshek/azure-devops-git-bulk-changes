@@ -41,9 +41,11 @@ function createStub(options: StubOptions = {}) {
   const pushes: { target: RepoTarget; push: PushRequest }[] = [];
   const pullRequests: { target: RepoTarget; request: PullRequestRequest }[] = [];
   const reads: string[] = [];
+  const branchReads: string[] = [];
 
   const access: RepoAccess = {
     async getBranchCommit(target, branch) {
+      branchReads.push(`${target.repositoryId}:${branch}`);
       if (options.unreadable?.includes(target.repositoryId)) {
         throw new BulkChangeError("no_access", `No access to ${target.repositoryName}.`);
       }
@@ -110,7 +112,7 @@ function createStub(options: StubOptions = {}) {
     },
   };
 
-  return { access, pushes, pullRequests, reads };
+  return { access, pushes, pullRequests, reads, branchReads };
 }
 
 const ADD_LICENSE = `
@@ -178,6 +180,30 @@ describe("previewRepos", () => {
     expect(plans.map((p) => p.status)).toEqual(["would-change", "no-change"]);
     expect(plans[0].desired).toEqual([{ kind: "add", path: "/LICENSE", content: "MIT" }]);
     expect(plans[1].message).toContain("already satisfied");
+  });
+
+  it("detects existing pull-request source branches during preview", async () => {
+    const { access, branchReads } = createStub({
+      files: { a: {} },
+      branches: { "a:add-license": "existing-source-tip" },
+    });
+    const plans = await previewRepos(access, definitionOf(PR_MODE), [repo("A", "a")]);
+
+    expect(plans[0].status).toBe("error");
+    expect(plans[0].message).toContain("Pull request source branch refs/heads/add-license already exists");
+    expect(plans[0].diffs).toHaveLength(1);
+    expect(branchReads).toEqual(["a:refs/heads/main", "a:add-license"]);
+  });
+
+  it("does not probe pull-request source branches when there are no changes", async () => {
+    const { access, branchReads } = createStub({
+      files: { a: { "/LICENSE": "MIT" } },
+      branches: { "a:add-license": "existing-source-tip" },
+    });
+    const plans = await previewRepos(access, definitionOf(PR_MODE), [repo("A", "a")]);
+
+    expect(plans[0].status).toBe("no-change");
+    expect(branchReads).toEqual(["a:refs/heads/main"]);
   });
 
   it("turns a read failure into an error row without failing the run", async () => {
@@ -350,13 +376,14 @@ branch: release/1.0`);
     expect(pullRequests[0].request.targetRefName).toBe("refs/heads/release/1.0");
   });
 
-  it("fails clearly when the pull-request source branch already exists", async () => {
-    const { access, pushes, pullRequests } = createStub({
-      files: { a: {} },
-      branches: { "a:add-license": "existing-source-tip" },
-    });
+  it("rechecks pull-request source branches at apply time", async () => {
+    const branches: Record<string, string> = {};
+    const { access, pushes, pullRequests } = createStub({ files: { a: {} }, branches });
     const definition = definitionOf(PR_MODE);
     const plans = await previewRepos(access, definition, [repo("A", "a")]);
+    expect(plans[0].status).toBe("would-change");
+
+    branches["a:add-license"] = "existing-source-tip";
     const results = await applyRepos(access, definition, plans);
 
     expect(results[0].status).toBe("failed");

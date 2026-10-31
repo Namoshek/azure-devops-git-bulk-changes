@@ -16,7 +16,7 @@ flowchart LR
 ## 1. The definition
 
 - The YAML document is the single source of truth: write mode, target branch, commit message and pull-request settings all live in it.
-- A `writeMode` of `directCommit` pushes straight to the branch; `pullRequest` opens a PR into it.
+- A `writeMode` of `pullRequest` (the default) opens a PR into the target branch; `directCommit` pushes straight to it when selected.
 - Multiple operation kinds: `add`, `addContent`, `applyPatch`, `delete`, `rename`, `replace`, each with specialized behavioral switches (missing file, no match, idempotency, recursion).
 - Parsing and validation happen once, on every edit: unknown keys are rejected, defaults are filled in, and paths, branch names and patches are checked before anything runs. An invalid definition is never applied.
 

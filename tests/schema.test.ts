@@ -56,7 +56,7 @@ describe("parseDefinition", () => {
 
     expect(definition.operations).toHaveLength(1);
     expect(definition.operations[0]).toEqual({ kind: "add", path: "/LICENSE", content: "hello", onlyIfMissing: false });
-    expect(definition.writeMode).toBe("directCommit");
+    expect(definition.writeMode).toBe("pullRequest");
     expect(definition.branch).toBeNull();
     expect(definition.commitMessage).toBe("Apply bulk changes");
     expect(definition.pullRequest).toEqual({

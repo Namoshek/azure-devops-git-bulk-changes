@@ -30,6 +30,30 @@ export function branchFor(definition: BulkChangeDefinition, target: RepoTarget):
   return definition.branch ?? target.defaultBranch;
 }
 
+function pullRequestSourceBranch(definition: BulkChangeDefinition): string {
+  return definition.pullRequest.branchName.trim() || "bulk-changes";
+}
+
+async function ensurePullRequestSourceBranchDoesNotExist(
+  access: RepoAccess,
+  target: RepoTarget,
+  sourceBranch: string,
+): Promise<void> {
+  try {
+    await access.getBranchCommit(target, sourceBranch);
+  } catch (err) {
+    if (err instanceof BulkChangeError && err.code === "branch_missing") {
+      return;
+    }
+    throw err;
+  }
+
+  throw new BulkChangeError(
+    "pull_request_branch_exists",
+    `Pull request source branch ${refName(sourceBranch)} already exists in ${target.repositoryName}; choose a different pullRequest.branchName.`,
+  );
+}
+
 export interface RunOptions {
   limits?: EngineLimits;
   concurrency?: number;
@@ -98,10 +122,22 @@ export async function previewRepos(
 
     try {
       const snapshot = await readSnapshot(access, target, branch, sourcePaths);
-      partial[index] = planRepository(target, definition, snapshot, branch, {
+      const plan = planRepository(target, definition, snapshot, branch, {
         limits: options.limits,
         sourcePaths,
       }).plan;
+
+      if (definition.writeMode === "pullRequest" && plan.status === "would-change") {
+        try {
+          await ensurePullRequestSourceBranchDoesNotExist(access, target, pullRequestSourceBranch(definition));
+        } catch (err) {
+          partial[index] = { ...plan, status: "error", message: getErrorMessage(err) };
+          notify();
+          return;
+        }
+      }
+
+      partial[index] = plan;
     } catch (err) {
       partial[index] = emptyPlan(target, branch, "error", getErrorMessage(err));
     }
@@ -169,22 +205,8 @@ export async function applyRepos(
           link: webLink(target, "commit", push.commitId),
         };
       } else {
-        const sourceBranch = definition.pullRequest.branchName.trim() || "bulk-changes";
-        let sourceBranchExists = false;
-        try {
-          await access.getBranchCommit(target, sourceBranch);
-          sourceBranchExists = true;
-        } catch (err) {
-          if (!(err instanceof BulkChangeError) || err.code !== "branch_missing") {
-            throw err;
-          }
-        }
-        if (sourceBranchExists) {
-          throw new BulkChangeError(
-            "pull_request_branch_exists",
-            `Pull request source branch ${refName(sourceBranch)} already exists in ${target.repositoryName}; choose a different pullRequest.branchName.`,
-          );
-        }
+        const sourceBranch = pullRequestSourceBranch(definition);
+        await ensurePullRequestSourceBranchDoesNotExist(access, target, sourceBranch);
 
         const push = await access.pushChanges(target, {
           refUpdates: [buildRefUpdate(sourceBranch, ZERO_OBJECT_ID)],

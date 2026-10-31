@@ -480,14 +480,14 @@ const operationSchema = z.union([
 export const definitionSchema = z.strictObject({
   writeMode: z
     .enum(["directCommit", "pullRequest"])
-    .default("directCommit")
+    .default("pullRequest")
     .meta({
       title: "How changes are written",
       description:
-        "How the result is written to each repository. 'directCommit' (the default) commits " +
-        "directly to the target branch, while 'pullRequest' instead creates a pull request that " +
-        "can be reviewed before merging. A pull request needs the repository to allow it, and " +
-        "its details come from the pullRequest section.",
+        "How the result is written to each repository. 'pullRequest' (the default) creates a " +
+        "pull request that can be reviewed before merging, while 'directCommit' commits directly " +
+        "to the target branch. A pull request needs the repository to allow it, and its details " +
+        "come from the pullRequest section.",
     }),
   /**
    * Target branch: read from and committed to in `directCommit` mode, merged into in `pullRequest`

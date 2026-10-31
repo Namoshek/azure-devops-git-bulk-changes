@@ -1,4 +1,4 @@
-writeMode: directCommit
+writeMode: pullRequest
 commitMessage: "Rename settings.json to config.json"
 operations:
   - rename:
