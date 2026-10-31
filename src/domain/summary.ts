@@ -120,3 +120,19 @@ export function summaryItems(summary: RunSummary, stage: RunStage): SummaryItem[
     item("skipped", summary.skipped),
   ];
 }
+
+/** Filters repository rows by the status shown for the active run stage. */
+export function filterPlansByStatus<TPlan extends { status: PlanStatus; target: { repositoryId: string } }>(
+  plans: readonly TPlan[],
+  results: ReadonlyMap<string, { status: ApplyStatus }>,
+  stage: RunStage,
+  status: PlanStatus | ApplyStatus | null,
+): TPlan[] {
+  if (status === null) {
+    return [...plans];
+  }
+  if (stage === "preview") {
+    return plans.filter((plan) => plan.status === status);
+  }
+  return plans.filter((plan) => results.get(plan.target.repositoryId)?.status === status);
+}

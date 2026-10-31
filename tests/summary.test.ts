@@ -1,4 +1,5 @@
-import { deriveSummary, statusLabel, summaryItems } from "../src/domain/summary";
+import { deriveSummary, filterPlansByStatus, statusLabel, summaryItems } from "../src/domain/summary";
+import { ApplyStatus, PlanStatus } from "../src/domain/types";
 
 describe("deriveSummary", () => {
   it("counts plan and apply statuses separately", () => {
@@ -46,5 +47,32 @@ describe("summaryItems", () => {
       ["Failed", 0],
       ["Skipped", 0],
     ]);
+  });
+});
+
+describe("filterPlansByStatus", () => {
+  const plans: Array<{ status: PlanStatus; target: { repositoryId: string } }> = [
+    { status: "would-change", target: { repositoryId: "change" } },
+    { status: "no-change", target: { repositoryId: "no-change" } },
+    { status: "skipped", target: { repositoryId: "preview-skipped" } },
+  ];
+  const results = new Map<string, { status: ApplyStatus }>([
+    ["change", { status: "committed" }],
+    ["no-change", { status: "skipped" }],
+    ["preview-skipped", { status: "skipped" }],
+  ]);
+
+  it("filters by preview plans or apply results for the active stage", () => {
+    expect(filterPlansByStatus(plans, results, "preview", "skipped").map((plan) => plan.target.repositoryId)).toEqual([
+      "preview-skipped",
+    ]);
+    expect(filterPlansByStatus(plans, results, "apply", "skipped").map((plan) => plan.target.repositoryId)).toEqual([
+      "no-change",
+      "preview-skipped",
+    ]);
+  });
+
+  it("shows all plans when no status is selected", () => {
+    expect(filterPlansByStatus(plans, results, "apply", null)).toEqual(plans);
   });
 });

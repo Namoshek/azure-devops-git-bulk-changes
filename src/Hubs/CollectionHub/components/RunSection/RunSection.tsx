@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { deriveSummary, RunStage } from "../../../../domain/summary";
+import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { deriveSummary, RunStage, SummaryItem } from "../../../../domain/summary";
 import { ApplyResult, BulkChangeDefinition, RepoTarget } from "../../../../domain/types";
 import { BulkRunState, definitionKeyOf, isPreviewCurrent } from "../../hooks/useBulkRun";
 import { ApplyConfirmDialog } from "../ApplyConfirmDialog/ApplyConfirmDialog";
@@ -24,6 +24,8 @@ function displayName(target: RepoTarget): string {
 export function RunSection({ definition, yamlText, targets, run }: RunSectionProps) {
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<SummaryItem["status"] | null>(null);
+  const filterScrollPosition = useRef<{ x: number; y: number } | null>(null);
 
   const summary = useMemo(() => deriveSummary(run.plans, run.results), [run.plans, run.results]);
   const resultsByRepo = useMemo(
@@ -40,8 +42,22 @@ export function RunSection({ definition, yamlText, targets, run }: RunSectionPro
   const canPreview = definition !== null && targets.length > 0 && !run.busy;
   const canApply = run.phase === "previewed" && previewCurrent && summary.wouldChange > 0;
 
+  useLayoutEffect(() => {
+    const scrollPosition = filterScrollPosition.current;
+    if (scrollPosition) {
+      window.scrollTo(scrollPosition.x, scrollPosition.y);
+      filterScrollPosition.current = null;
+    }
+  }, [statusFilter]);
+
+  const changeStatusFilter = (status: SummaryItem["status"] | null): void => {
+    filterScrollPosition.current = { x: window.scrollX, y: window.scrollY };
+    setStatusFilter(status);
+  };
+
   const startPreview = (): void => {
     if (definition) {
+      setStatusFilter(null);
       setDetailsId(null);
       setConfirmOpen(false);
       run.startPreview(definition, targets);
@@ -50,12 +66,14 @@ export function RunSection({ definition, yamlText, targets, run }: RunSectionPro
 
   const startApply = (): void => {
     if (definition) {
+      setStatusFilter(null);
       setConfirmOpen(false);
       run.startApply(definition, run.plans, yamlText);
     }
   };
 
   const reset = (): void => {
+    setStatusFilter(null);
     setDetailsId(null);
     run.reset();
   };
@@ -95,6 +113,8 @@ export function RunSection({ definition, yamlText, targets, run }: RunSectionPro
         done={run.done}
         total={run.total}
         error={run.error}
+        statusFilter={statusFilter}
+        onStatusFilterChange={changeStatusFilter}
         onShowDetails={setDetailsId}
       />
 

@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { MessageCardSeverity } from "azure-devops-ui/Components/MessageCard/MessageCard.Props";
 import { TitleSize } from "azure-devops-ui/Components/Header/Header.Props";
-import { RunStage, RunSummary, summaryItems } from "../../../../domain/summary";
+import { filterPlansByStatus, RunStage, RunSummary, summaryItems, SummaryItem } from "../../../../domain/summary";
 import { ApplyResult, RepoPlan } from "../../../../domain/types";
 import { InlineText } from "../../../../components/InlineText/InlineText";
 import { CardBody } from "../../../../components/CardBody/CardBody";
@@ -20,6 +20,8 @@ interface RunCardProps {
   done: number;
   total: number;
   error: string | null;
+  statusFilter: SummaryItem["status"] | null;
+  onStatusFilterChange: (status: SummaryItem["status"] | null) => void;
   onShowDetails: (repositoryId: string) => void;
 }
 
@@ -30,8 +32,24 @@ function progressText(stage: RunStage, done: number, total: number): string {
 }
 
 /** The outcome of the current run: counters and per-repository results, for preview and apply alike. */
-export function RunCard({ stage, plans, results, summary, busy, done, total, error, onShowDetails }: RunCardProps) {
+export function RunCard({
+  stage,
+  plans,
+  results,
+  summary,
+  busy,
+  done,
+  total,
+  error,
+  statusFilter,
+  onStatusFilterChange,
+  onShowDetails,
+}: RunCardProps) {
   const hasRun = plans.length > 0 || busy;
+  const filteredPlans = useMemo(
+    () => filterPlansByStatus(plans, results, stage, statusFilter),
+    [plans, results, stage, statusFilter],
+  );
 
   return (
     <CardBase
@@ -55,10 +73,26 @@ export function RunCard({ stage, plans, results, summary, busy, done, total, err
               {busy ? (
                 <ProgressBarBase currentValue={done} maxValue={Math.max(1, total)} ariaLabel="Run progress" />
               ) : null}
-              <SummaryCounters items={summaryItems(summary, stage)} ariaLabel="Run summary" />
+              <SummaryCounters
+                items={summaryItems(summary, stage)}
+                ariaLabel="Run summary"
+                selectedStatus={statusFilter}
+                onStatusFilterChange={onStatusFilterChange}
+              />
             </div>
             {plans.length > 0 ? (
-              <ResultsTable plans={plans} results={results} interactive={!busy} onShowDetails={onShowDetails} />
+              filteredPlans.length > 0 ? (
+                <ResultsTable
+                  plans={filteredPlans}
+                  results={results}
+                  interactive={!busy}
+                  onShowDetails={onShowDetails}
+                />
+              ) : (
+                <div className="bc-run-card-section">
+                  <InlineText tone="muted">No repositories match this status.</InlineText>
+                </div>
+              )
             ) : null}
           </>
         ) : (
