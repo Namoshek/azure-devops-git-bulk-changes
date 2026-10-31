@@ -142,6 +142,7 @@ operations:
       kind: "rename",
       from: "/a/settings.json",
       to: "/a/config.json",
+      recursive: false,
       onFileMissing: "error",
     });
     expect(definition.operations[2]).toEqual({
@@ -288,6 +289,23 @@ operations:
       path: "/.vs",
       pathPattern: null,
       patternNoMatch: "skip",
+      recursive: true,
+      onFileMissing: "error",
+    });
+  });
+
+  it("maps a recursive rename", () => {
+    const definition = valid(`
+  operations:
+  - rename:
+      from: /old
+      to: /new
+      recursive: true
+`);
+    expect(definition.operations[0]).toEqual({
+      kind: "rename",
+      from: "/old",
+      to: "/new",
       recursive: true,
       onFileMissing: "error",
     });

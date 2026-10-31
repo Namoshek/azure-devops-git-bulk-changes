@@ -12,7 +12,7 @@ import {
 } from "../types";
 import { VirtualWorkspace, WorkspaceFile } from "./workspace";
 import { applyGitPatch } from "./gitPatch";
-import { matchesPathPattern, normalizeGitPath } from "./pathUtils";
+import { isInTree, matchesPathPattern, normalizeGitPath, treePathsOverlap } from "./pathUtils";
 
 export interface OperationContext {
   limits: EngineLimits;
@@ -124,10 +124,6 @@ function applyDelete(workspace: VirtualWorkspace, index: number, op: DeleteOpera
 
   workspace.remove(path);
   return result(index, op, path, "applied", `${path} would be deleted.`);
-}
-
-function isInTree(candidate: string, root: string): boolean {
-  return candidate === root || candidate.startsWith(root === "/" ? "/" : `${root}/`);
 }
 
 /**
@@ -299,12 +295,38 @@ function applyRename(
   index: number,
   from: string,
   to: string,
+  recursive: boolean,
   onFileMissing: "error" | "skip",
 ): OpResult {
-  const op = { kind: "rename" as const, from, to, onFileMissing };
+  const op = { kind: "rename" as const, from, to, recursive, onFileMissing };
 
   if (from === to) {
     return result(index, op, from, "error", "Rename source and target are the same path.");
+  }
+
+  if (recursive) {
+    const sourcePaths = workspace.paths().filter((candidate) => isInTree(candidate, from));
+    if (sourcePaths.length === 0) {
+      if (onFileMissing === "skip") {
+        return result(index, op, from, "noop", `${from} does not exist or is empty — rename skipped.`);
+      }
+      return result(index, op, from, "error", `${from} does not exist or is empty in this repository.`);
+    }
+
+    if (treePathsOverlap(from, to)) {
+      return result(index, op, from, "error", "Rename source and target trees must not overlap.");
+    }
+
+    const moved = workspace.renameTree(from, to);
+    if (!moved) {
+      return result(index, op, to, "error", `Rename target tree ${to} already contains tracked files.`);
+    }
+
+    const collisions = [...new Set(moved.flatMap((move) => move.collisions))].sort();
+    const message = collisions.length
+      ? `${from}: ${moved.length} file(s) would move to ${to}. Note: ${collisions.join(", ")} differs only by case, which is ambiguous in most working trees.`
+      : `${from}: ${moved.length} file(s) would move to ${to}.`;
+    return result(index, op, to, collisions.length ? "warning" : "applied", message);
   }
 
   const source = workspace.get(from);
@@ -436,7 +458,14 @@ export function applyOperation(
       return applyDelete(workspace, index, op, normalizeGitPath(op.path ?? ""));
     }
     case "rename":
-      return applyRename(workspace, index, normalizeGitPath(op.from), normalizeGitPath(op.to), op.onFileMissing);
+      return applyRename(
+        workspace,
+        index,
+        normalizeGitPath(op.from),
+        normalizeGitPath(op.to),
+        op.recursive,
+        op.onFileMissing,
+      );
     case "replace": {
       if (op.pathPattern) {
         return fanOut(workspace, index, op.kind, op.pathPattern, op.patternNoMatch ?? "skip", context.limits, (path) =>

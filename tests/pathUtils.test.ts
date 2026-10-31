@@ -4,6 +4,8 @@ import {
   dirname,
   basename,
   isUnderPath,
+  isInTree,
+  treePathsOverlap,
   extension,
   isPathPattern,
   compilePathPattern,
@@ -56,6 +58,19 @@ describe("path helpers", () => {
     expect(isUnderPath("/a", "/a")).toBe(false);
     expect(isUnderPath("/a/b", "/")).toBe(true);
     expect(isUnderPath("/ab", "/a")).toBe(false);
+  });
+
+  it("detects a tree root and its descendants", () => {
+    expect(isInTree("/a", "/a")).toBe(true);
+    expect(isInTree("/a/b", "/a")).toBe(true);
+    expect(isInTree("/ab", "/a")).toBe(false);
+  });
+
+  it("detects overlapping tree roots without treating case-only renames as overlap", () => {
+    expect(treePathsOverlap("/old", "/old/new")).toBe(true);
+    expect(treePathsOverlap("/old/sub", "/OLD")).toBe(true);
+    expect(treePathsOverlap("/old", "/OLD")).toBe(false);
+    expect(treePathsOverlap("/old", "/oldish")).toBe(false);
   });
 
   it("derives extensions in lowercase", () => {

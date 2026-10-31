@@ -349,33 +349,44 @@ const renameSchema = z.strictObject({
   rename: z
     .strictObject({
       from: pathField.meta({
-        title: "Existing file to move",
+      title: "Existing file or folder to move",
         description:
-          "The path of the file to rename or move. Renames address one exact file, so " +
-          "pathPattern is not available here.",
+        "The path of the file to rename or move. When recursive is true, this names a folder root " +
+        "and all tracked files beneath it are moved. pathPattern is not available here.",
       }),
       to: pathField.meta({
-        title: "New file path",
+      title: "New file path or folder root",
         description:
-          "The path the file is moved to. The target must not already exist in the " +
-          "repository, or the operation reports an error.",
+        "The path the file is moved to. When recursive is true, this names the destination folder " +
+        "root, which must not contain tracked files.",
+      }),
+      recursive: z
+      .boolean()
+      .default(false)
+      .meta({
+        title: "Move a whole folder",
+        description:
+          "When true, from and to name folder roots. Every tracked file under from moves to the " +
+          "corresponding path under to, preserving relative paths. The source must contain at least " +
+          "one tracked file, destination tree must be empty, roots must not overlap, and the move " +
+          "is limited to 1,000 files.",
       }),
       onFileMissing: z
-        .enum(["error", "skip"])
+      .enum(["error", "skip"])
         .default("error")
         .meta({
           title: "Missing file handling",
           description:
-            "What happens when the source file does not exist in the repository. 'error' (the " +
-            "default) reports the operation as failed, and 'skip' reports that there was " +
-            "nothing to move.",
+            "What happens when the source file does not exist, or the source folder is empty when " +
+            "recursive is true. 'error' (the default) reports failure; 'skip' reports that there " +
+            "was nothing to move.",
         }),
     })
     .meta({
-      title: "Rename or move a file",
+      title: "Rename or move files or folders",
       description:
-        "Move one file from one repository path to another. Moving onto an existing path fails, " +
-        "and a target that differs from another file only in letter case is reported as ambiguous.",
+        "Move one file by default. With recursive true, move every tracked file in a folder while " +
+        "preserving relative paths. Destination conflicts fail, and case-only collisions are reported.",
     }),
 });
 
@@ -742,6 +753,7 @@ function normalizeOperation(raw: RawOperationLike): BulkOperation {
       kind: "rename",
       from: tryNormalizeGitPath(op.from) as string,
       to: tryNormalizeGitPath(op.to) as string,
+      recursive: op.recursive,
       onFileMissing: op.onFileMissing as MissingSourceBehavior,
     };
     return operation;

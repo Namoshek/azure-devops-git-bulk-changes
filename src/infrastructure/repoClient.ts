@@ -264,9 +264,9 @@ async function readPatternFiles(
 /**
  * Every file below `path` (at any depth), read with their content where possible.
  *
- * A listing larger than `limit` is rejected: a recursive delete must never act on a partial listing.
- * Content is loaded so the preview can show exactly what a recursive delete removes; files that
- * cannot be read as text (binary, oversized) stay content-less and render as header-only diffs.
+ * A listing larger than `limit` is rejected: a recursive operation must never act on a partial listing.
+ * Content is loaded for preview diffs; files that cannot be read as text (binary, oversized) stay
+ * content-less and render as header-only diffs.
  */
 async function readTreeFiles(
   client: GitRestClient,
@@ -294,7 +294,7 @@ async function readTreeFiles(
     if (found.length > limit) {
       throw new BulkChangeError(
         "tree_too_large",
-        `${path} contains more than ${limit} files in ${target.repositoryName}; refusing to delete it.`,
+        `${path} contains more than ${limit} files in ${target.repositoryName}; refusing to process it.`,
       );
     }
 

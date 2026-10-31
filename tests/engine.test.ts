@@ -63,6 +63,34 @@ describe("VirtualWorkspace", () => {
     expect(ws.has("/a.txt")).toBe(false);
   });
 
+  it("renames a tree while preserving relative paths and file metadata", () => {
+    const ws = VirtualWorkspace.fromBaseFiles([
+      file("/old/a.txt", "a"),
+      binaryFile("/old/nested/image.png"),
+      file("/oldish/keep.txt", "keep"),
+    ]);
+
+    const moved = ws.renameTree("/old", "/new");
+
+    expect(moved?.map(({ from, to }) => ({ from, to }))).toEqual([
+      { from: "/old/a.txt", to: "/new/a.txt" },
+      { from: "/old/nested/image.png", to: "/new/nested/image.png" },
+    ]);
+    expect(ws.paths()).toEqual(["/new/a.txt", "/new/nested/image.png", "/oldish/keep.txt"]);
+    expect(ws.get("/new/nested/image.png")?.content).toBeNull();
+    expect(ws.get("/new/nested/image.png")?.originalPath).toBe("/old/nested/image.png");
+  });
+
+  it("does not partially rename a tree when the destination is occupied", () => {
+    const ws = VirtualWorkspace.fromBaseFiles([
+      file("/old/a.txt", "a"),
+      file("/new/existing.txt", "existing"),
+    ]);
+
+    expect(ws.renameTree("/old", "/new")).toBeNull();
+    expect(ws.paths()).toEqual(["/new/existing.txt", "/old/a.txt"]);
+  });
+
   it("reports case-insensitive collisions", () => {
     const ws = VirtualWorkspace.fromBaseFiles([file("/Readme.md", "x")]);
     expect(ws.caseInsensitiveCollisions("/README.md")).toEqual(["/Readme.md"]);
@@ -265,6 +293,85 @@ diff --git a/config.txt b/config.txt
     expect(remove("error")).toBe("error");
   });
 
+  it("recursive rename moves a tree and preserves paths relative to its root", () => {
+    const ws = VirtualWorkspace.fromBaseFiles([
+      file("/old/a.txt", "a"),
+      file("/old/nested/b.txt", "b"),
+      file("/oldish/keep.txt", "keep"),
+    ]);
+
+    const result = applyOperation(
+      ws,
+      { kind: "rename", from: "/old", to: "/new", recursive: true, onFileMissing: "error" },
+      0,
+      context,
+    );
+
+    expect(result.severity).toBe("applied");
+    expect(result.message).toContain("2 file(s)");
+    expect(ws.paths()).toEqual(["/new/a.txt", "/new/nested/b.txt", "/oldish/keep.txt"]);
+  });
+
+  it("warns on a case-only recursive folder move", () => {
+    const ws = VirtualWorkspace.fromBaseFiles([file("/old/a.txt", "a")]);
+    const result = applyOperation(
+      ws,
+      { kind: "rename", from: "/old", to: "/OLD", recursive: true, onFileMissing: "error" },
+      0,
+      context,
+    );
+
+    expect(result.severity).toBe("warning");
+    expect(result.message).toContain("/old/a.txt");
+    expect(ws.paths()).toEqual(["/OLD/a.txt"]);
+  });
+
+  it("recursive rename rejects an occupied destination without moving source files", () => {
+    const ws = VirtualWorkspace.fromBaseFiles([
+      file("/old/a.txt", "a"),
+      file("/new/existing.txt", "existing"),
+    ]);
+
+    const result = applyOperation(
+      ws,
+      { kind: "rename", from: "/old", to: "/new", recursive: true, onFileMissing: "error" },
+      0,
+      context,
+    );
+
+    expect(result.severity).toBe("error");
+    expect(ws.paths()).toEqual(["/new/existing.txt", "/old/a.txt"]);
+  });
+
+  it("recursive rename rejects overlapping source and destination trees", () => {
+    const ws = VirtualWorkspace.fromBaseFiles([file("/old/a.txt", "a")]);
+    const result = applyOperation(
+      ws,
+      { kind: "rename", from: "/old", to: "/old/new", recursive: true, onFileMissing: "error" },
+      0,
+      context,
+    );
+
+    expect(result.severity).toBe("error");
+    expect(result.message).toContain("must not overlap");
+    expect(ws.paths()).toEqual(["/old/a.txt"]);
+  });
+
+  it("recursive rename honours onFileMissing for a missing or empty source tree", () => {
+    const ws = VirtualWorkspace.fromBaseFiles([file("/README.md", "x")]);
+    const rename = (onFileMissing: "error" | "skip") =>
+      applyOperation(
+        ws,
+        { kind: "rename", from: "/old", to: "/new", recursive: true, onFileMissing },
+        0,
+        context,
+      );
+
+    expect(rename("skip").severity).toBe("noop");
+    expect(rename("error").severity).toBe("error");
+    expect(ws.paths()).toEqual(["/README.md"]);
+  });
+
   describe("addContent", () => {
     const addContent = (files: BaseFile[], overrides: Partial<Extract<BulkOperation, { kind: "addContent" }>> = {}) => {
       const ws = VirtualWorkspace.fromBaseFiles(files);
@@ -354,15 +461,35 @@ diff --git a/config.txt b/config.txt
   it("rename errors on a missing source, an occupied target and an identical path", () => {
     const ws = VirtualWorkspace.fromBaseFiles([file("/a.txt", "x"), file("/b.txt", "y")]);
     expect(
-      applyOperation(ws, { kind: "rename", from: "/nope", to: "/c.txt", onFileMissing: "error" }, 0, context).severity,
+      applyOperation(
+        ws,
+        { kind: "rename", from: "/nope", to: "/c.txt", recursive: false, onFileMissing: "error" },
+        0,
+        context,
+      ).severity,
     ).toBe("error");
     expect(
-      applyOperation(ws, { kind: "rename", from: "/a.txt", to: "/b.txt", onFileMissing: "error" }, 1, context).severity,
+      applyOperation(
+        ws,
+        { kind: "rename", from: "/a.txt", to: "/b.txt", recursive: false, onFileMissing: "error" },
+        1,
+        context,
+      ).severity,
     ).toBe("error");
     expect(
-      applyOperation(ws, { kind: "rename", from: "/a.txt", to: "/a.txt", onFileMissing: "error" }, 2, context).severity,
+      applyOperation(
+        ws,
+        { kind: "rename", from: "/a.txt", to: "/a.txt", recursive: false, onFileMissing: "error" },
+        2,
+        context,
+      ).severity,
     ).toBe("error");
-    const ok = applyOperation(ws, { kind: "rename", from: "/a.txt", to: "/c.txt", onFileMissing: "error" }, 3, context);
+    const ok = applyOperation(
+      ws,
+      { kind: "rename", from: "/a.txt", to: "/c.txt", recursive: false, onFileMissing: "error" },
+      3,
+      context,
+    );
     expect(ok.severity).toBe("applied");
   });
 
@@ -370,7 +497,7 @@ diff --git a/config.txt b/config.txt
     const ws = VirtualWorkspace.fromBaseFiles([file("/Config.json", "x"), file("/legacy.json", "y")]);
     const result = applyOperation(
       ws,
-      { kind: "rename", from: "/legacy.json", to: "/config.json", onFileMissing: "error" },
+      { kind: "rename", from: "/legacy.json", to: "/config.json", recursive: false, onFileMissing: "error" },
       0,
       context,
     );
@@ -768,6 +895,52 @@ describe("planRepository", () => {
     expect(binaryDiff?.diff?.includes("--- /dev/null")).toBe(false);
     expect(binaryDiff?.additions).toBe(0);
     expect(binaryDiff?.deletions).toBe(0);
+  });
+
+  it("reads recursive rename trees and plans relative file moves", () => {
+    const { sourcePaths, plan } = planOf(
+      `operations:
+  - rename:
+      from: /src
+      to: /archive
+      recursive: true
+`,
+      [file("/src/a.txt", "a\n"), file("/src/nested/b.txt", "b\n"), file("/src2/keep.txt", "keep\n")],
+    );
+
+    expect(sourcePaths).toEqual([
+      { kind: "tree", path: "/src", maxEntries: 1000 },
+      { kind: "tree", path: "/archive", maxEntries: 1000 },
+    ]);
+    expect(plan.status).toBe("would-change");
+    expect(plan.desired).toEqual([
+      { kind: "rename", from: "/src/a.txt", to: "/archive/a.txt", content: "a\n", baseObjectId: "sha-/src/a.txt" },
+      {
+        kind: "rename",
+        from: "/src/nested/b.txt",
+        to: "/archive/nested/b.txt",
+        content: "b\n",
+        baseObjectId: "sha-/src/nested/b.txt",
+      },
+    ]);
+    expect(plan.diffs.map((diff) => diff.originalPath)).toEqual(["/src/a.txt", "/src/nested/b.txt"]);
+  });
+
+  it("rejects a recursive rename when the destination tree contains tracked files", () => {
+    const { plan } = planOf(
+      `operations:
+  - rename:
+      from: /src
+      to: /archive
+      recursive: true
+`,
+      [file("/src/a.txt", "a\n"), file("/archive/existing.txt", "existing\n")],
+    );
+
+    expect(plan.status).toBe("error");
+    expect(plan.message).toContain("already contains tracked files");
+    expect(plan.desired).toEqual([]);
+    expect(plan.diffs).toEqual([]);
   });
 
   it("collects a pathPattern as a single pattern source instead of a literal path", () => {

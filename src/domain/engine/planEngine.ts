@@ -13,15 +13,14 @@ import {
 } from "../types";
 import { computeFileDiff } from "./diff";
 import { applyOperation } from "./operations";
-import { normalizeGitPath } from "./pathUtils";
+import { matchesPathPattern, normalizeGitPath } from "./pathUtils";
 import { getGitPatchPaths } from "./gitPatch";
-import { matchesPathPattern } from "./pathUtils";
 import { VirtualWorkspace } from "./workspace";
 
 /** Default number of entries pulled in when an operation targets a directory. */
 export const DEFAULT_DIRECTORY_SCAN_LIMIT = 50;
 
-/** Most files a recursive delete may cover; a larger tree is rejected rather than partially deleted. */
+/** Most files a recursive delete or move may cover; larger trees are rejected rather than partially changed. */
 export const DEFAULT_TREE_SCAN_LIMIT = 1000;
 
 /** Most files a path pattern may select; beyond it the repository is refused, like a tree scan. */
@@ -70,8 +69,15 @@ export function collectSourcePaths(
         }
         break;
       case "rename":
-        paths.push({ kind: "literal", path: normalizeGitPath(op.from) });
-        paths.push({ kind: "literal", path: normalizeGitPath(op.to) });
+        if (op.recursive) {
+          paths.push(
+            { kind: "tree", path: normalizeGitPath(op.from), maxEntries: DEFAULT_TREE_SCAN_LIMIT },
+            { kind: "tree", path: normalizeGitPath(op.to), maxEntries: DEFAULT_TREE_SCAN_LIMIT },
+          );
+        } else {
+          paths.push({ kind: "literal", path: normalizeGitPath(op.from) });
+          paths.push({ kind: "literal", path: normalizeGitPath(op.to) });
+        }
         break;
     }
   }

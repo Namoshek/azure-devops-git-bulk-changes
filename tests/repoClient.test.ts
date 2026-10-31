@@ -252,4 +252,34 @@ describe("readFiles", () => {
     ).rejects.toThrow(/above the 2 limit/);
     expect(readClient.getItem).not.toHaveBeenCalled();
   });
+
+  it("reads all files in a recursive tree", async () => {
+    readClient.getItems.mockReturnValue([
+      { path: "/old/a.ts", isFolder: false },
+      { path: "/old/deep/b.ts", isFolder: false },
+      { path: "/oldish/keep.ts", isFolder: false },
+      { path: "/old/deep", isFolder: true },
+    ]);
+
+    const files = await createRepoAccess().readFiles(target, "base-sha", [
+      { kind: "tree", path: "/old", maxEntries: 2 },
+    ]);
+
+    expect(readClient.getItems.mock.calls[0][2]).toBe("/old");
+    expect(readClient.getItems.mock.calls[0][3]).toBe(3);
+    expect(files.map((file) => file.path).sort()).toEqual(["/old/a.ts", "/old/deep/b.ts"]);
+    expect(readClient.getItem).toHaveBeenCalledTimes(2);
+  });
+
+  it("refuses a recursive tree over the cap before reading file content", async () => {
+    readClient.getItems.mockReturnValue([
+      { path: "/old/a.ts", isFolder: false },
+      { path: "/old/b.ts", isFolder: false },
+    ]);
+
+    await expect(
+      createRepoAccess().readFiles(target, "base-sha", [{ kind: "tree", path: "/old", maxEntries: 1 }]),
+    ).rejects.toThrow(/refusing to process it/);
+    expect(readClient.getItem).not.toHaveBeenCalled();
+  });
 });

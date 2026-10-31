@@ -1,5 +1,5 @@
 import { BaseFile, DesiredChange } from "../types";
-import { isPathEqualIgnoreCase, normalizeGitPath } from "./pathUtils";
+import { isInTree, isPathEqualIgnoreCase, normalizeGitPath, treePathsOverlap } from "./pathUtils";
 
 /** A single file inside the virtual workspace. */
 export interface WorkspaceFile {
@@ -14,6 +14,12 @@ export interface WorkspaceFile {
   isBinary: boolean;
   /** True when this entry was created by an operation rather than read from Git. */
   synthesized: boolean;
+}
+
+export interface WorkspaceRename {
+  from: string;
+  to: string;
+  collisions: string[];
 }
 
 /**
@@ -111,6 +117,68 @@ export class VirtualWorkspace {
       originalPath: source.originalPath ?? normalizedFrom,
     });
     return true;
+  }
+
+  /** Move `from` and every file below it to `to`, preserving relative paths. */
+  public renameTree(from: string, to: string): WorkspaceRename[] | null {
+    const normalizedFrom = normalizeGitPath(from);
+    const normalizedTo = normalizeGitPath(to);
+    if (normalizedFrom === normalizedTo || treePathsOverlap(normalizedFrom, normalizedTo)) {
+      return null;
+    }
+
+    const sourcePaths = this.paths().filter((candidate) => isInTree(candidate, normalizedFrom));
+    const sourcePathSet = new Set(sourcePaths);
+    const sameTreeIgnoringCase = normalizedFrom.toLowerCase() === normalizedTo.toLowerCase();
+    const destinationOccupied = this.paths().some(
+      (candidate) =>
+        (isInTree(candidate, normalizedTo) || isInTree(candidate.toLowerCase(), normalizedTo.toLowerCase())) &&
+        !(sameTreeIgnoringCase && sourcePathSet.has(candidate)),
+    );
+    if (sourcePaths.length === 0 || destinationOccupied) {
+      return null;
+    }
+
+    const moves: Array<{ from: string; to: string; file: WorkspaceFile; collisions: string[] }> = [];
+    for (const sourcePath of sourcePaths) {
+      const file = this.files.get(sourcePath);
+      if (!file) {
+        return null;
+      }
+
+      const relativePath =
+        sourcePath === normalizedFrom
+          ? ""
+          : sourcePath.slice(normalizedFrom === "/" ? 1 : normalizedFrom.length + 1);
+      const targetPath = relativePath ? `${normalizedTo}/${relativePath}` : normalizedTo;
+      moves.push({
+        from: sourcePath,
+        to: targetPath,
+        file,
+        collisions: this.caseInsensitiveCollisions(targetPath),
+      });
+    }
+
+    if (new Set(moves.map((move) => move.to)).size !== moves.length || moves.some((move) => this.files.has(move.to))) {
+      return null;
+    }
+
+    for (const move of moves) {
+      this.files.delete(move.from);
+    }
+    for (const move of moves) {
+      this.files.set(move.to, {
+        ...move.file,
+        path: move.to,
+        originalPath: move.file.originalPath ?? move.from,
+      });
+    }
+
+    return moves.map(({ from: sourcePath, to: targetPath, collisions }) => ({
+      from: sourcePath,
+      to: targetPath,
+      collisions,
+    }));
   }
 
   public paths(): string[] {

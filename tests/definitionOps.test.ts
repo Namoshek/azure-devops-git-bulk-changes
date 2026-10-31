@@ -23,6 +23,11 @@ describe("appendOperation", () => {
     expect((seq as YAMLSeq).items.length).toBe(1);
   });
 
+  it("adds the default recursive setting to a rename template", () => {
+    const next = appendOperation(BLANK_DEFINITION, "rename") as string;
+    expect(next).toMatch(/^\s+recursive: false$/m);
+  });
+
   it("produces a definition that still validates", () => {
     const next = appendOperation(BLANK_DEFINITION, "replace");
     expect(next).not.toBeNull();

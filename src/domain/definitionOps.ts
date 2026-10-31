@@ -43,7 +43,7 @@ const TEMPLATES: Record<OperationKind, Record<string, unknown>> = {
     },
   },
   delete: { delete: { path: "/obsolete.txt", recursive: false, onFileMissing: "skip" } },
-  rename: { rename: { from: "/settings.json", to: "/config.json", onFileMissing: "skip" } },
+  rename: { rename: { from: "/settings.json", to: "/config.json", recursive: false, onFileMissing: "skip" } },
   replace: {
     replace: {
       path: "/azure-pipelines.yml",

@@ -19,7 +19,7 @@ The extension adds a page to the collection settings that lets any user of the o
 | `addContent` | Insert text at the `start`, the `end` or a `lineNumber` of an existing file.                                                                                                                              |
 | `applyPatch` | Apply a unified Git patch across one or more text files. With `allowPartial: true`, files the patch cannot apply to are skipped; the operation only fails when no file would change.                      |
 | `delete`     | Remove a file, or a whole directory with `recursive: true`; can ignore missing ones. With `pathPattern`, deletes every file the pattern matches.                                                          |
-| `rename`     | Rename or move a file (content is carried over).                                                                                                                                                          |
+| `rename`     | Rename or move one file (content is carried over). With `recursive: true`, move every tracked file under `from` to the corresponding path under `to`; destination tree must be empty, roots must not overlap, up to 1,000 files. |
 | `replace`    | Replace literal text by default. With `useRegex: true`, `find` is a JavaScript regex, `$1` or `$<name>` in `replace` reference capture groups, and all matches are replaced (`g` is added automatically). |
 
 #### Path & Pattern Matching

@@ -73,6 +73,21 @@ export function isUnderPath(path: string, prefix: string): boolean {
   return path.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`);
 }
 
+/** True when `candidate` is `root` or lies below it. */
+export function isInTree(candidate: string, root: string): boolean {
+  return candidate === root || isUnderPath(candidate, root);
+}
+
+/** True when distinct tree roots overlap, treating path casing as equivalent. */
+export function treePathsOverlap(left: string, right: string): boolean {
+  const normalizedLeft = left.toLowerCase();
+  const normalizedRight = right.toLowerCase();
+  return (
+    normalizedLeft !== normalizedRight &&
+    (isInTree(normalizedLeft, normalizedRight) || isInTree(normalizedRight, normalizedLeft))
+  );
+}
+
 /** Extension without the final dot, or empty string. */
 export function extension(path: string): string {
   const name = basename(path);

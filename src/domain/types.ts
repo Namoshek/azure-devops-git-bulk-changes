@@ -76,10 +76,12 @@ export interface DeleteOperation {
 
 export interface RenameOperation {
   kind: "rename";
-  /** Existing source path. */
+  /** Existing file path, or a folder root when `recursive` is true. */
   from: string;
-  /** New target path. */
+  /** New file path, or a folder root when `recursive` is true. */
   to: string;
+  /** When true, move every tracked file under `from` to the corresponding path under `to`. */
+  recursive: boolean;
   onFileMissing: MissingSourceBehavior;
 }
 
