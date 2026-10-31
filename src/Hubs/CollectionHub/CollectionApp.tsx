@@ -87,7 +87,18 @@ export function CollectionApp() {
         ]}
       />
       {helpOpen ? <HelpDialog onDismiss={() => setHelpOpen(false)} /> : null}
-      {historyOpen ? <HistoryDialog onDismiss={() => setHistoryOpen(false)} /> : null}
+      {
+        historyOpen ? (
+          <HistoryDialog
+            onDismiss={() => setHistoryOpen(false)}
+            disabled={run.busy || scope.loading}
+            onImport={({ yamlText, repositoryIds }) => {
+              draft.setYamlText(yamlText);
+              scope.selectRepos([...new Set(repositoryIds)]);
+            }}
+          />
+        ) : null
+      }
 
       <div className="page-content page-content-top bc-page">
         {sdk.error ? (

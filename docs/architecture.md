@@ -45,7 +45,7 @@ Any operation that yields an error stops that repository from being written; it 
 3. The planned changes are mapped onto the push payload: last write wins per path, deletions go last, and a rename that also changes content becomes an add plus a delete (some server versions reject content-carrying renames).
 4. **Direct commit:** one push updates `refs/heads/<branch>` and the result links to the new commit.
 5. **Pull request:** the source branch must not already exist; the changes are pushed to it as a new branch off the freshly read base commit, then a PR is opened into the target branch. Optional auto-complete is enabled afterwards.
-6. All executed runs (when the apply has been confirmed) are recorded in a per-user history (definition text + outcome), keeping the 100 most recent entries. Each user can only view their own bulk change history.
+6. All executed runs (when the apply has been confirmed) are recorded in a per-user history (definition text + outcome), keeping the 100 most recent entries. Each user can only view their own bulk change history. Each history entry offers an inline "(import this change into the editor)" link that replaces the current selection with the repositories of that run and loads the recorded definition into the change-definition editor; repositories that were removed or lost write access are skipped.
 
 ## 5. Azure DevOps endpoints used
 

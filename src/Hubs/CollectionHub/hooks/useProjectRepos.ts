@@ -29,12 +29,14 @@ export interface ScopeState {
   /** Selected repositories the bulk run will operate on. */
   targets: RepoTarget[];
   toggleRepo: (repositoryId: string) => void;
+  /** Replaces the selection with the given ids, dropping any that are not currently selectable. */
+  selectRepos: (repositoryIds: string[]) => void;
   setAllRepos: (selected: boolean) => void;
   reload: () => void;
 }
 
 /** A row can be selected when it is a real repository and Contribute access is not known to be missing. */
-function isSelectable(row: RepoRow): boolean {
+export function isSelectable(row: RepoRow): boolean {
   return row.target.repositoryId !== "" && row.canContribute !== false;
 }
 
@@ -171,6 +173,21 @@ export function useProjectRepos(): ScopeState {
     [repoRows],
   );
 
+  // Repositories of an imported history run: only rows still accessible and writable can be re-selected,
+  // so ids of removed or read-only repositories are silently dropped.
+  const selectRepos = useCallback(
+    (repositoryIds: string[]): void => {
+      const wanted = new Set(repositoryIds);
+      setSelectedRepoIds(
+        repoRows
+          .filter((row) => wanted.has(row.target.repositoryId) && isSelectable(row))
+          .map((row) => row.target.repositoryId)
+          .sort(),
+      );
+    },
+    [repoRows],
+  );
+
   const targets = useMemo(
     () =>
       repoRows
@@ -186,6 +203,7 @@ export function useProjectRepos(): ScopeState {
     selectedRepoIds,
     targets,
     toggleRepo,
+    selectRepos,
     setAllRepos,
     reload: () => void load(),
   };

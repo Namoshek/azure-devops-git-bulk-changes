@@ -43,6 +43,26 @@
   font-weight: 600;
 }
 
+/* The import action sits inline after the date, so the button is styled as link text. */
+.bc-history-import-link {
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-weight: normal;
+  font-size: inherit;
+  line-height: 1.2;
+  cursor: pointer;
+  background-color: transparent;
+  border: none;
+  color: var(--communication-foreground, inherit);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.bc-history-import-link.disabled {
+  color: var(--text-disabled-color, rgba(0, 0, 0, 0.38));
+  text-decoration: none;
+}
+
 .bc-history-definition {
   margin-bottom: 12px;
 }
@@ -71,6 +91,19 @@
   max-width: 100%;
   min-width: 0;
   overflow-x: auto;
+}
+
+/* azure-devops-ui lists set user-select: none on the row elements the Table renders,
+ * so re-enable selection on the history table content to keep commit ids copyable. */
+.bc-history-table-scroll .bolt-list,
+.bc-history-table-scroll .bolt-table-cell,
+.bc-history-table-scroll .bolt-table-cell-primary,
+.bc-history-table-scroll .bolt-table-cell-secondary,
+.bc-history-table-scroll .bolt-table-cell-content {
+  -ms-user-select: text;
+  -moz-user-select: text;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .bc-history-reference {
