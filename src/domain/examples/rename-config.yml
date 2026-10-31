@@ -1,8 +1,7 @@
-writeMode: directCommit # directCommit | pullRequest
+writeMode: directCommit
 commitMessage: "Rename settings.json to config.json"
 operations:
-  # rename or move a file
   - rename:
       from: /settings.json
       to: /config.json
-      onFileMissing: skip # error | skip
+      onFileMissing: skip

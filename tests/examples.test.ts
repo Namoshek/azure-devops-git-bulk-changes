@@ -38,27 +38,9 @@ describe("built-in examples", () => {
     );
   });
 
-  it("includes an explanatory comment for every example operation", () => {
-    const comments = {
-      add: "# add a file",
-      addContent: "# add content to an existing file",
-      applyPatch:
-        "# apply a Git patch; create with 'git show --format= --no-ext-diff --no-color --find-renames <commit>'",
-      delete: "# delete a file or directory",
-      rename: "# rename or move a file",
-      replace: "# change file content",
-    } as const;
-
+  it("carries no explanatory comments, since schema hover provides the metadata", () => {
     for (const example of EXAMPLES) {
-      const result = parseExample(example.id);
-      if (!result.ok) {
-        throw new Error(result.issues.join("; "));
-      }
-      for (const operation of result.definition.operations) {
-        expect(example.yaml).toMatch(
-          new RegExp(`^  ${comments[operation.kind]}\\s*\\r?\\n  - ${operation.kind}:`, "m"),
-        );
-      }
+      expect(example.yaml).not.toMatch(/^\s*# (add|change|delete|rename|apply)/m);
     }
   });
 });

@@ -1,4 +1,4 @@
-writeMode: pullRequest # directCommit | pullRequest
+writeMode: pullRequest
 commitMessage: "Use the self-hosted agent pool"
 pullRequest:
   branchName: patch-agent-pool
@@ -7,7 +7,6 @@ pullRequest:
   draft: false
   autoMerge: false
 operations:
-  # apply a Git patch; create with 'git show --format= --no-ext-diff --no-color --find-renames <commit>'
   - applyPatch:
       allowPartial: true
       patch: |

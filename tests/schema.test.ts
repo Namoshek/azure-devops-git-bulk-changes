@@ -1,4 +1,17 @@
-import { parseDefinition } from "../src/domain/schema";
+import { definitionJsonSchema, parseDefinition } from "../src/domain/schema";
+
+interface JsonSchemaView {
+  $schema?: string;
+  additionalProperties?: boolean;
+  anyOf?: JsonSchemaView[];
+  description?: string;
+  enum?: unknown[];
+  items?: JsonSchemaView;
+  oneOf?: JsonSchemaView[];
+  properties?: Record<string, JsonSchemaView>;
+  required?: string[];
+  title?: string;
+}
 
 function valid(definition: string) {
   const result = parseDefinition(definition);
@@ -9,6 +22,30 @@ function valid(definition: string) {
 }
 
 describe("parseDefinition", () => {
+  it("converts the definition schema to an input JSON Schema for Monaco", () => {
+    const schema = JSON.parse(JSON.stringify(definitionJsonSchema)) as JsonSchemaView;
+    const properties = schema.properties ?? {};
+    const operations = properties.operations;
+    const branches = operations?.items?.anyOf ?? operations?.items?.oneOf ?? [];
+    const add = branches.find((branch) => branch.properties?.add);
+    const addContent = branches.find((branch) => branch.properties?.addContent);
+    const addContentSchema = addContent?.properties?.addContent;
+
+    expect(schema.$schema).toContain("draft-07");
+    expect(schema.required).toContain("operations");
+    expect(schema.required).not.toContain("writeMode");
+    expect(properties.writeMode?.enum).toEqual(["directCommit", "pullRequest"]);
+    expect(properties.writeMode?.description).toContain("directly");
+    expect(properties.writeMode?.title).toBe("How changes are written");
+    expect(add?.properties?.add?.description).toContain("Add a new file");
+    expect(add?.properties?.add?.title).toBe("Add a new file");
+    expect(addContent?.additionalProperties).toBe(false);
+    expect(addContentSchema?.properties?.position?.enum).toEqual(["start", "end", "lineNumber"]);
+    expect(addContentSchema?.properties?.position?.title).toBe("Insertion point");
+    expect(addContentSchema?.properties?.position?.description).toContain("Where the content is inserted");
+    expect(addContentSchema?.properties?.onFileMissing?.enum).toEqual(["error", "skip", "createIfMissing"]);
+  });
+
   it("accepts a minimal add definition and applies defaults", () => {
     const definition = valid(`
   operations:
@@ -432,6 +469,45 @@ glob: "**/*.ts"
     }
   });
 
+  it("maps Zod diagnostics to the invalid YAML value", () => {
+    const yaml = "operations:\n  - add:\n      path: ../outside\n      content: x\n";
+    const result = parseDefinition(yaml);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      const diagnostic = result.diagnostics.find((item) => item.path.join(".") === "operations.0.add.path");
+      expect(diagnostic).toBeDefined();
+      expect(yaml.slice(diagnostic?.startOffset, diagnostic?.endOffset)).toBe("../outside");
+    }
+  });
+
+  it("maps unknown-key diagnostics to the YAML key", () => {
+    const yaml = "operations:\n  - add:\n      path: /LICENSE\n      content: x\n      unexpected: true\n";
+    const result = parseDefinition(yaml);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      const diagnostic = result.diagnostics.find((item) => item.path[item.path.length - 1] === "unexpected");
+      expect(diagnostic).toBeDefined();
+      expect(yaml.slice(diagnostic?.startOffset, diagnostic?.endOffset)).toBe("unexpected");
+    }
+  });
+
+  it("maps semantic diagnostics to their YAML field", () => {
+    const yaml = [
+      "operations:",
+      "  - replace:",
+      '      pathPattern: "/src/[a-z.ts"',
+      "      find: a",
+      "      replace: b",
+    ].join("\n");
+    const result = parseDefinition(yaml);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      const diagnostic = result.diagnostics.find((item) => item.code === "custom");
+      expect(diagnostic).toBeDefined();
+      expect(yaml.slice(diagnostic?.startOffset, diagnostic?.endOffset)).toBe('"/src/[a-z.ts"');
+    }
+  });
+
   it("rejects multiple operations keys in one entry", () => {
     const result = parseDefinition(`
   operations:
@@ -449,6 +525,8 @@ glob: "**/*.ts"
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.issues[0]).toContain("not valid YAML");
+      expect(result.diagnostics[0].startOffset).toBeDefined();
+      expect(result.diagnostics[0].endOffset).toBeDefined();
     }
   });
 

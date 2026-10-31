@@ -1,4 +1,4 @@
-writeMode: pullRequest # directCommit | pullRequest
+writeMode: pullRequest
 commitMessage: "Use the self-hosted agent pool"
 pullRequest:
   branchName: update-agent-pool
@@ -7,10 +7,9 @@ pullRequest:
   draft: true
   autoMerge: false
 operations:
-  # change file content
   - replace:
       path: /azure-pipelines.yml
       find: "pool: Azure"
       replace: 'pool: { name: "Self-Hosted" }'
       useRegex: false
-      onNoMatch: skip # error | skip | createIfMissing
+      onNoMatch: skip

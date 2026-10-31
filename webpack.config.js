@@ -23,9 +23,13 @@ module.exports = {
       // path used by azure-devops-extension-api both resolve to the same module
       // instance, preventing the "SDK is already loaded" duplicate-detection error.
       "azure-devops-extension-sdk": path.resolve(__dirname, "node_modules/azure-devops-extension-sdk/SDK.js"),
-      // Import the editor API entry so only the core editor is bundled; the monaco webpack plugin
-      // injects the worker configuration and registers just the YAML language (see plugins below).
-      "monaco-editor": path.resolve(__dirname, "node_modules/monaco-editor/esm/vs/editor/editor.api.js"),
+      // Use Monaco's published entry so monaco-yaml's legacy worker manager receives its worker API
+      // compatibility wrapper; the webpack plugin injects the worker configuration below.
+      "monaco-editor$": path.resolve(__dirname, "node_modules/monaco-editor/esm/vs/editor/editor.main.js"),
+      "monaco-editor/esm/vs/editor/editor.worker.js$": path.resolve(
+        __dirname,
+        "node_modules/monaco-editor/esm/vs/editor/editor.worker.js",
+      ),
     },
   },
   module: {
@@ -59,9 +63,19 @@ module.exports = {
       patterns: [{ from: "src/Hubs/CollectionHub/index.html", to: "CollectionHub/index.html" }],
     }),
     // Emit the monaco editor worker and register only the YAML language, mirroring the editor Azure
-    // Repos uses for file editing while keeping the bundle small (yaml has no language worker).
+    // Repos uses for file editing. monaco-yaml adds the schema-language worker.
     new MonacoWebpackPlugin({
       languages: ["yaml"],
+      customLanguages: [
+        {
+          label: "yaml",
+          entry: "monaco-yaml",
+          worker: {
+            id: "monaco-yaml/yamlWorker",
+            entry: "monaco-yaml/yaml.worker",
+          },
+        },
+      ],
       filename: "[name].worker.js",
     }),
   ],

@@ -33,7 +33,14 @@ export function DefinitionCard({
   return (
     <CardBase titleProps={{ text: "Change Definition", size: TitleSize.Medium }} className="bolt-card-white">
       <CardBody>
-        <YamlEditor value={yamlText} ariaLabel="Change definition YAML" disabled={disabled} onChange={onYamlChange} />
+        <YamlEditor
+          value={yamlText}
+          ariaLabel="Change definition YAML"
+          disabled={disabled}
+          diagnostics={parsed.ok ? undefined : parsed.diagnostics}
+          schemaAware
+          onChange={onYamlChange}
+        />
         <EditorActions disabled={disabled} onAddOperation={onAddOperation} onLoadExample={onLoadExample} />
         <ValidationMessage parsed={parsed} />
       </CardBody>

@@ -1,4 +1,4 @@
-writeMode: pullRequest # directCommit | pullRequest
+writeMode: pullRequest
 commitMessage: "Normalize the agent pool in every pipeline config"
 pullRequest:
   branchName: normalize-pipeline-config
@@ -7,10 +7,9 @@ pullRequest:
   draft: true
   autoMerge: false
 operations:
-  # change file content
   - replace:
-      pathPattern: "/**/azure-pipelines*.yml" # "**" spans directories; "*" stays inside one file name
+      pathPattern: "/**/azure-pipelines*.yml"
       find: "pool: Azure"
       replace: 'pool: { name: "Self-Hosted" }'
       useRegex: false
-      onNoMatch: skip # error | skip | createIfMissing
+      onNoMatch: skip

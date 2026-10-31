@@ -37,7 +37,7 @@ export function findExample(id: string): DefinitionExample | undefined {
 export function parseExample(id: string): ParseResult {
   const example = findExample(id);
   if (!example) {
-    return { ok: false, operationCount: 0, issues: [`Unknown example "${id}".`] };
+    return { ok: false, operationCount: 0, issues: [`Unknown example "${id}".`], diagnostics: [] };
   }
   return parseDefinition(example.yaml);
 }

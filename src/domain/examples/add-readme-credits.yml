@@ -1,4 +1,4 @@
-writeMode: pullRequest # directCommit | pullRequest
+writeMode: pullRequest
 commitMessage: "Add credits to README.md"
 pullRequest:
   branchName: add-readme-credits
@@ -7,7 +7,6 @@ pullRequest:
   draft: false
   autoMerge: false
 operations:
-  # add content to an existing file
   - addContent:
       path: /README.md
       content: |
@@ -15,6 +14,6 @@ operations:
         ## Credits
 
         Maintained by the Platform team.
-      position: end # start | end | lineNumber
+      position: end
       skipIfPresent: true
-      onFileMissing: skip # error | skip | createIfMissing
+      onFileMissing: skip

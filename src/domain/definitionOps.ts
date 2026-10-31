@@ -1,11 +1,11 @@
-import { parseDocument, Document, Scalar, YAMLMap, YAMLSeq } from "yaml";
+import { parseDocument, Document, YAMLMap, YAMLSeq } from "yaml";
 import { OperationKind } from "./types";
 
 /**
  * A starter document for a brand-new definition. It is an empty scaffold on purpose: the schema requires
  * at least one operation, so it only validates once the user adds an operation.
  */
-export const BLANK_DEFINITION = `writeMode: pullRequest # directCommit | pullRequest
+export const BLANK_DEFINITION = `writeMode: pullRequest
 commitMessage: "Apply bulk changes"
 pullRequest:
   branchName: bulk-changes
@@ -55,36 +55,6 @@ const TEMPLATES: Record<OperationKind, Record<string, unknown>> = {
   },
 };
 
-/** Same-line comments that clarify template fields and list allowed enum values. */
-const PATH_PATTERN_HINT = "exact file; use pathPattern (e.g. /src/**/*.ts) to match many";
-
-const FIELD_COMMENTS: Record<OperationKind, Record<string, string>> = {
-  add: {},
-  addContent: {
-    path: PATH_PATTERN_HINT,
-    position: "start | end | lineNumber",
-    lineNumber: "1-based; only used when position is lineNumber",
-    onFileMissing: "error | skip | createIfMissing",
-  },
-  applyPatch: {
-    patch: "text Git unified diff; binary and file-mode-only patches are unsupported",
-    allowPartial: "true | false; with true, files the patch cannot apply are skipped",
-  },
-  delete: { path: PATH_PATTERN_HINT, onFileMissing: "error | skip" },
-  rename: { onFileMissing: "error | skip" },
-  replace: { path: PATH_PATTERN_HINT, onNoMatch: "error | skip | createIfMissing" },
-};
-
-/** A short comment describing the step, kept above it so the YAML stays self-documenting. */
-const COMMENTS: Record<OperationKind, string> = {
-  add: "add a file",
-  addContent: "add content to an existing file",
-  applyPatch: "apply a Git patch; create with 'git show --format= --no-ext-diff --no-color --find-renames <commit>'",
-  delete: "delete a file or directory",
-  rename: "rename or move a file",
-  replace: "change file content",
-};
-
 /**
  * Append an operation of the given kind to the `operations` list of a definition, preserving everything
  * else in the document (including existing comments where the YAML library keeps them).
@@ -121,14 +91,6 @@ export function appendOperation(yamlText: string, kind: OperationKind): string |
 
   const step = { ...TEMPLATES[kind] };
   const item = doc.createNode(step) as unknown as YAMLMap<unknown, unknown>;
-  item.commentBefore = ` ${COMMENTS[kind]}`;
-  const body = item.get(kind) as YAMLMap<unknown, unknown>;
-  for (const [field, comment] of Object.entries(FIELD_COMMENTS[kind])) {
-    const value = body.get(field, true) as Scalar | undefined;
-    if (value) {
-      value.comment = ` ${comment}`;
-    }
-  }
   seq.add(item);
 
   return doc.toString({ lineWidth: 0 });

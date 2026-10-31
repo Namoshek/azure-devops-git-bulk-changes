@@ -1,13 +1,35 @@
 import React, { useEffect, useRef } from "react";
 import * as monaco from "monaco-editor";
+import { configureMonacoYaml } from "monaco-yaml";
+import { definitionJsonSchema, ParseDiagnostic } from "../../../../domain/schema";
 import { currentThemeName } from "../../../../utils/monacoTheme";
 import "./YamlEditor.css";
+
+const VALIDATION_MARKER_OWNER = "bulk-change-definition";
+const EMPTY_DIAGNOSTICS: ParseDiagnostic[] = [];
+const DEFINITION_MODEL_URI = "file:///bulk-changes/change-definition.yaml";
+
+configureMonacoYaml(monaco, {
+  completion: true,
+  enableSchemaRequest: false,
+  format: { enable: true },
+  hover: true,
+  hoverSchemaSource: false,
+  schemas: [
+    {
+      uri: "inmemory://bulk-changes/change-definition.schema.json",
+      fileMatch: [DEFINITION_MODEL_URI],
+      schema: definitionJsonSchema,
+    },
+  ],
+  validate: false,
+});
 
 /**
  * Monaco-based YAML editor, matching the editor Azure Repos uses for repository files.
  *
- * `monaco-editor` is aliased in webpack to `editor.api.js`, so the monaco webpack plugin injects the
- * worker configuration and registers only the YAML language.
+ * Webpack resolves `monaco-editor` through its published entry, which adapts the legacy worker
+ * options used by monaco-yaml to Monaco's worker implementation.
  */
 interface YamlEditorProps {
   value: string;
@@ -15,6 +37,8 @@ interface YamlEditorProps {
   ariaLabel: string;
   disabled?: boolean;
   automaticLayout?: boolean;
+  diagnostics?: ParseDiagnostic[];
+  schemaAware?: boolean;
   onChange: (value: string) => void;
 }
 
@@ -24,6 +48,8 @@ export function YamlEditor({
   ariaLabel,
   disabled = false,
   automaticLayout = true,
+  diagnostics = EMPTY_DIAGNOSTICS,
+  schemaAware = false,
   onChange,
 }: YamlEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -40,9 +66,13 @@ export function YamlEditor({
 
     const initialTheme = currentThemeName();
     monaco.editor.setTheme(initialTheme);
-    const editor = monaco.editor.create(container, {
+    const model = monaco.editor.createModel(
       value,
       language,
+      schemaAware ? monaco.Uri.parse(DEFINITION_MODEL_URI) : undefined,
+    );
+    const editor = monaco.editor.create(container, {
+      model,
       theme: initialTheme,
       ariaLabel,
       automaticLayout,
@@ -79,11 +109,16 @@ export function YamlEditor({
 
     return () => {
       window.removeEventListener("themeApplied", onThemeChanged);
+      const currentModel = editor.getModel();
+      if (currentModel) {
+        monaco.editor.setModelMarkers(currentModel, VALIDATION_MARKER_OWNER, []);
+      }
       if (layoutFrame !== null) {
         cancelAnimationFrame(layoutFrame);
       }
       changeSubscription.dispose();
       editor.dispose();
+      model.dispose();
       editorRef.current = null;
     };
     // Editor is created once; value updates are pushed imperatively below.
@@ -97,6 +132,32 @@ export function YamlEditor({
       editor.setValue(value);
     }
   }, [value]);
+
+  useEffect(() => {
+    const model = editorRef.current?.getModel();
+    if (!model) return;
+
+    const modelLength = model.getValueLength();
+    const markers: monaco.editor.IMarkerData[] = diagnostics.map((diagnostic) => {
+      const startOffset = Math.min(Math.max(diagnostic.startOffset ?? 0, 0), modelLength);
+      const endOffset = Math.min(Math.max(diagnostic.endOffset ?? startOffset, startOffset), modelLength);
+      const markerEndOffset = endOffset > startOffset ? endOffset : Math.min(startOffset + 1, modelLength);
+      const start = model.getPositionAt(startOffset);
+      const end = model.getPositionAt(markerEndOffset);
+      return {
+        severity: monaco.MarkerSeverity.Error,
+        message: diagnostic.message,
+        code: diagnostic.code,
+        source: "Definition",
+        startLineNumber: start.lineNumber,
+        startColumn: start.column,
+        endLineNumber: end.lineNumber,
+        endColumn: end.column,
+        modelVersionId: model.getVersionId(),
+      };
+    });
+    monaco.editor.setModelMarkers(model, VALIDATION_MARKER_OWNER, markers);
+  }, [diagnostics]);
 
   useEffect(() => {
     editorRef.current?.updateOptions({ readOnly: disabled });

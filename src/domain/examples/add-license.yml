@@ -1,4 +1,4 @@
-writeMode: pullRequest # directCommit | pullRequest
+writeMode: pullRequest
 commitMessage: "Add MIT LICENSE file"
 pullRequest:
   branchName: add-license
@@ -7,7 +7,6 @@ pullRequest:
   draft: false
   autoMerge: false
 operations:
-  # add a file
   - add:
       path: /LICENSE
       onlyIfMissing: true

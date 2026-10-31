@@ -1,4 +1,4 @@
-writeMode: pullRequest # directCommit | pullRequest
+writeMode: pullRequest
 commitMessage: "Remove the .vs directory"
 pullRequest:
   branchName: delete-vs-directory
@@ -7,8 +7,7 @@ pullRequest:
   draft: false
   autoMerge: false
 operations:
-  # delete a file or directory
   - delete:
       path: /.vs
       recursive: true
-      onFileMissing: skip # error | skip
+      onFileMissing: skip

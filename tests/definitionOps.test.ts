@@ -54,27 +54,16 @@ describe("appendOperation", () => {
     },
   );
 
-  it("lists the allowed values of enum fields in a comment on the same line", () => {
+  it("emits no explanatory comments, since the schema now provides hover metadata", () => {
     const addContent = appendOperation(BLANK_DEFINITION, "addContent") as string;
-    expect(addContent).toMatch(/^\s+position: end # start \| end \| lineNumber$/m);
-    expect(addContent).toMatch(/^\s+lineNumber: 1 # 1-based; only used when position is lineNumber$/m);
-    expect(addContent).toMatch(/^\s+onFileMissing: skip # error \| skip \| createIfMissing$/m);
-
-    const applyPatch = appendOperation(BLANK_DEFINITION, "applyPatch") as string;
-    expect(applyPatch).toContain(
-      "# apply a Git patch; create with 'git show --format= --no-ext-diff --no-color --find-renames <commit>'",
-    );
-    expect(applyPatch).toContain("text Git unified diff; binary and file-mode-only patches are unsupported");
-
-    expect(appendOperation(BLANK_DEFINITION, "delete") as string).toMatch(/^\s+onFileMissing: skip # error \| skip$/m);
-    expect(appendOperation(BLANK_DEFINITION, "rename") as string).toMatch(/^\s+onFileMissing: skip # error \| skip$/m);
-    expect(appendOperation(BLANK_DEFINITION, "replace") as string).toMatch(
-      /^\s+onNoMatch: skip # error \| skip \| createIfMissing$/m,
-    );
+    expect(addContent).not.toContain("#");
+    expect(addContent).toMatch(/^\s+position: end$/m);
+    expect(addContent).toMatch(/^\s+onFileMissing: skip$/m);
   });
 
-  it("documents the write mode in the blank definition", () => {
-    expect(BLANK_DEFINITION).toContain("writeMode: pullRequest # directCommit | pullRequest");
+  it("declares the write mode without an obsolete comment in the blank definition", () => {
+    expect(BLANK_DEFINITION).toContain("writeMode: pullRequest");
+    expect(BLANK_DEFINITION).not.toContain("# directCommit");
     expect(BLANK_DEFINITION).toContain("autoMerge: false");
   });
 });
