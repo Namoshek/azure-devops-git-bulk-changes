@@ -41,7 +41,12 @@ export function DefinitionCard({
           schemaAware
           onChange={onYamlChange}
         />
-        <EditorActions disabled={disabled} onAddOperation={onAddOperation} onLoadExample={onLoadExample} />
+        <EditorActions
+          disabled={disabled}
+          appendDisabled={!parsed.ok}
+          onAddOperation={onAddOperation}
+          onLoadExample={onLoadExample}
+        />
         <ValidationMessage parsed={parsed} />
       </CardBody>
     </CardBase>

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { appendOperation, BLANK_DEFINITION } from "../../../domain/definitionOps";
+import { appendOperation } from "../../../domain/definitionOps";
 import { EXAMPLES, findExample } from "../../../domain/examples";
 import { ParseResult, parseDefinition } from "../../../domain/schema";
 import { BulkChangeDefinition, OperationKind } from "../../../domain/types";
@@ -29,9 +29,8 @@ export function useDefinitionDraft(): DefinitionDraft {
     }
   }, []);
 
-  // An invalid document cannot be extended, so it restarts from a blank definition.
   const addOperation = useCallback((kind: OperationKind): void => {
-    setYamlText((previous) => appendOperation(previous, kind) ?? BLANK_DEFINITION);
+    setYamlText((previous) => appendOperation(previous, kind) ?? previous);
   }, []);
 
   return { yamlText, parsed, definition, setYamlText, loadExample, addOperation };
