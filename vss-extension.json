@@ -55,7 +55,9 @@
   "screenshots": [
     { "path": "images/screenshot_01.png" },
     { "path": "images/screenshot_02.png" },
-    { "path": "images/screenshot_03.png" }
+    { "path": "images/screenshot_03.png" },
+    { "path": "images/screenshot_04.png" },
+    { "path": "images/screenshot_05.png" }
   ],
   "contributions": [
     {

@@ -13,14 +13,14 @@ The extension adds a page to the collection settings that lets any user of the o
 
 ### Operations
 
-| Operation    | Behaviour                                                                                                                                                                                                 |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `add`        | Create a file; optionally only when it is missing.                                                                                                                                                        |
-| `addContent` | Insert text at the `start`, the `end` or a `lineNumber` of an existing file.                                                                                                                              |
-| `applyPatch` | Apply a unified Git patch across one or more text files. With `allowPartial: true`, files the patch cannot apply to are skipped; the operation only fails when no file would change.                      |
-| `delete`     | Remove a file, or a whole directory with `recursive: true`; can ignore missing ones. With `pathPattern`, deletes every file the pattern matches.                                                          |
+| Operation    | Behaviour                                                                                                                                                                                                                        |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `add`        | Create a file; optionally only when it is missing.                                                                                                                                                                               |
+| `addContent` | Insert text at the `start`, the `end` or a `lineNumber` of an existing file.                                                                                                                                                     |
+| `applyPatch` | Apply a unified Git patch across one or more text files. With `allowPartial: true`, files the patch cannot apply to are skipped; the operation only fails when no file would change.                                             |
+| `delete`     | Remove a file, or a whole directory with `recursive: true`; can ignore missing ones. With `pathPattern`, deletes every file the pattern matches.                                                                                 |
 | `rename`     | Rename or move one file (content is carried over). With `recursive: true`, move every tracked file under `from` to the corresponding path under `to`; destination tree must be empty, roots must not overlap, up to 1,000 files. |
-| `replace`    | Replace literal text by default. With `useRegex: true`, `find` is a JavaScript regex, `$1` or `$<name>` in `replace` reference capture groups, and all matches are replaced (`g` is added automatically). |
+| `replace`    | Replace literal text by default. With `useRegex: true`, `find` is a JavaScript regex, `$1` or `$<name>` in `replace` reference capture groups, and all matches are replaced (`g` is added automatically).                        |
 
 #### Path & Pattern Matching
 
@@ -111,4 +111,8 @@ All calls go directly to the Azure DevOps REST API with the signed-in user's OAu
 
 ![Apply Confirmation](https://raw.githubusercontent.com/Namoshek/azure-devops-git-bulk-changes/refs/heads/main/images/screenshot_02.png)
 
-![History](https://raw.githubusercontent.com/Namoshek/azure-devops-git-bulk-changes/refs/heads/main/images/screenshot_03.png)
+![Change Details Overview](https://raw.githubusercontent.com/Namoshek/azure-devops-git-bulk-changes/refs/heads/main/images/screenshot_03.png)
+
+![Change Details Diff](https://raw.githubusercontent.com/Namoshek/azure-devops-git-bulk-changes/refs/heads/main/images/screenshot_04.png)
+
+![History](https://raw.githubusercontent.com/Namoshek/azure-devops-git-bulk-changes/refs/heads/main/images/screenshot_05.png)
